@@ -1,0 +1,9 @@
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# VS Code / editor folders (if you ever edit locally)
+.vscode/
