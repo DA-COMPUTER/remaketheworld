@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Remake the World — GSA Aurora</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:'Inter',sans-serif; color:#fff; }
+    #canvas-container { width:100vw; height:100vh; }
+    canvas { display:block; }
+
+    /* ── HUD ─────────────────────────────────────────────────────── */
+    #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+
+    #top-bar {
+      position:absolute; top:0; left:0; right:0; padding:14px 28px;
+      display:flex; align-items:center; justify-content:space-between;
+      background:linear-gradient(to bottom,rgba(4,14,30,0.92),transparent);
+    }
+    #game-title {
+      font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+      letter-spacing:.18em; color:#a8d4f5;
+      text-shadow:0 0 22px rgba(80,160,240,.5);
+    }
+    #gsa-badge { font-size:.68rem; font-weight:300; letter-spacing:.22em; color:rgba(140,195,240,.55); }
+
+    /* interaction prompt */
+    #prompt {
+      position:absolute; top:54%; left:50%; transform:translate(-50%,0);
+      background:rgba(4,14,30,.85); border:1px solid rgba(80,160,240,.4);
+      border-radius:6px; padding:8px 20px; font-size:.7rem; letter-spacing:.15em;
+      color:#a0d0ff; opacity:0; transition:opacity .4s; pointer-events:none;
+      backdrop-filter:blur(6px);
+    }
+    #prompt.show { opacity:1; }
+
+    /* ── CONSOLE OVERLAY ─────────────────────────────────────────── */
+    #console-overlay {
+      position:fixed; inset:0; background:rgba(2,8,20,.94);
+      z-index:50; display:none; flex-direction:column;
+      align-items:center; justify-content:flex-start;
+      padding:40px 24px 24px; gap:16px;
+      backdrop-filter:blur(12px);
+      pointer-events:all;
+    }
+    #console-overlay.open { display:flex; }
+    .co-title {
+      font-family:'Orbitron',sans-serif; font-size:.9rem; font-weight:700;
+      letter-spacing:.2em; color:#a8d4f5;
+      text-shadow:0 0 18px rgba(80,160,240,.5);
+    }
+    .co-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; max-width:900px; }
+    .co-panel {
+      background:rgba(8,24,50,.9); border:1px solid rgba(80,160,240,.25);
+      border-radius:8px; padding:16px;
+    }
+    .co-panel h3 {
+      font-family:'Orbitron',sans-serif; font-size:.6rem; letter-spacing:.18em;
+      color:#5aaeff; margin-bottom:12px; text-transform:uppercase;
+    }
+    .recipe-row {
+      display:flex; align-items:center; gap:10px; padding:7px 0;
+      border-bottom:1px solid rgba(80,160,240,.1); font-size:.78rem;
+      font-weight:300; color:#cce4ff;
+    }
+    .recipe-row:last-child { border-bottom:none; }
+    .recipe-dot {
+      width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    }
+    .dot-locked { background:#1a2a3a; }
+    .dot-ready  { background:#5aaeff; box-shadow:0 0 6px #5aaeff; }
+    .voss-box { display:flex; flex-direction:column; gap:10px; }
+    .voss-portrait {
+      width:70px; height:70px; border-radius:50%;
+      background:radial-gradient(circle at 40% 40%, #1a4878, #081828);
+      border:2px solid rgba(80,160,240,.4);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.6rem; flex-shrink:0;
+    }
+    .voss-line {
+      background:rgba(5,18,40,.8); border:1px solid rgba(80,160,240,.2);
+      border-radius:6px; padding:10px 14px; font-size:.78rem;
+      line-height:1.7; color:#c8e0ff; font-weight:300; cursor:pointer;
+      transition:background .2s;
+    }
+    .voss-line:hover { background:rgba(80,160,240,.1); }
+    .voss-header { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+    .voss-name {
+      font-family:'Orbitron',sans-serif; font-size:.6rem;
+      letter-spacing:.18em; color:#5aaeff;
+    }
+    #co-close {
+      margin-top:8px; padding:9px 28px; background:transparent;
+      border:1px solid rgba(80,160,240,.4); border-radius:4px;
+      color:#a8d4f5; font-family:'Orbitron',sans-serif; font-size:.7rem;
+      letter-spacing:.16em; cursor:pointer; transition:all .22s;
+    }
+    #co-close:hover { background:rgba(80,160,240,.12); }
+
+    /* ── STORY PANEL ─────────────────────────────────────────────── */
+    #story-panel {
+      position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+      width:min(560px,90vw); background:rgba(4,14,30,.88);
+      border:1px solid rgba(80,160,240,.28); border-radius:10px;
+      padding:16px 20px; pointer-events:all; backdrop-filter:blur(8px);
+    }
+    #speaker-name {
+      font-family:'Orbitron',sans-serif; font-size:.6rem; letter-spacing:.22em;
+      color:#5aaeff; margin-bottom:7px; text-transform:uppercase;
+    }
+    #dialogue-text { font-size:.81rem; line-height:1.75; color:#cce4ff; font-weight:300; }
+    #dialogue-hint {
+      margin-top:9px; font-size:.62rem; letter-spacing:.14em;
+      color:rgba(100,170,240,.4); animation:blink 1.6s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+    #controls-hint {
+      position:absolute; bottom:106px; right:22px;
+      font-size:.62rem; font-weight:300; color:rgba(140,195,240,.28);
+      letter-spacing:.1em; line-height:2; text-align:right;
+    }
+    #crosshair {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%); width:14px; height:14px; opacity:.35;
+    }
+    #crosshair::before,#crosshair::after {
+      content:''; position:absolute; background:#90c8f0;
+    }
+    #crosshair::before { width:100%; height:1px; top:50%; left:0; }
+    #crosshair::after  { width:1px; height:100%; left:50%; top:0; }
+
+    /* ── CUTSCENE ─────────────────────────────────────────────────── */
+    #cutscene { position:fixed; inset:0; background:#000; z-index:200; overflow:hidden; }
+    #cutscene::before,#cutscene::after {
+      content:''; position:absolute; left:0; right:0; height:11vh; background:#000; z-index:10;
+    }
+    #cutscene::before { top:0; } #cutscene::after { bottom:0; }
+    #scene-canvas { width:100vw; height:100vh; display:block; }
+    #cutscene-ui { position:absolute; inset:0; z-index:20; pointer-events:none; }
+    #scene-location {
+      position:absolute; top:13vh; left:50%; transform:translateX(-50%);
+      font-size:.68rem; letter-spacing:.24em; color:rgba(130,195,250,.75);
+      font-weight:300; opacity:0; transition:opacity .8s ease;
+      white-space:nowrap;
+    }
+    #narration-box {
+      position:absolute; bottom:13vh; left:50%; transform:translateX(-50%);
+      width:min(660px,86vw); text-align:center;
+    }
+    #narration-speaker {
+      font-family:'Orbitron',sans-serif; font-size:.58rem; letter-spacing:.22em;
+      color:#5aaeff; margin-bottom:9px; opacity:0; transition:opacity .5s ease .3s;
+      text-transform:uppercase;
+    }
+    #narration-text {
+      font-size:.88rem; line-height:1.8; color:#cce4ff; font-weight:300;
+      opacity:0; transition:opacity .7s ease .5s; min-height:3em;
+    }
+    #narration-box.visible #narration-speaker,
+    #narration-box.visible #narration-text { opacity:1; }
+    #scene-continue {
+      position:absolute; bottom:calc(13vh - 26px); right:36px;
+      font-size:.62rem; letter-spacing:.15em; color:rgba(100,180,240,.4);
+      animation:blink 1.4s ease-in-out infinite; pointer-events:all; cursor:pointer;
+    }
+    #scene-skip {
+      position:absolute; top:13vh; right:22px; font-size:.62rem;
+      letter-spacing:.14em; color:rgba(255,255,255,.18); cursor:pointer;
+      pointer-events:all; padding:5px 10px; border:1px solid rgba(255,255,255,.1);
+      border-radius:3px; transition:all .2s;
+    }
+    #scene-skip:hover { color:rgba(255,255,255,.5); border-color:rgba(255,255,255,.26); }
+    #scene-progress {
+      position:absolute; bottom:calc(13vh - 8px); left:50%;
+      transform:translateX(-50%); display:flex; gap:7px;
+    }
+    .scene-dot { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.12); transition:background .4s; }
+    .scene-dot.active { background:#5aaeff; box-shadow:0 0 6px #5aaeff; }
+    .scene-dot.done   { background:rgba(100,175,250,.3); }
+    #scene-wipe { position:absolute; inset:0; background:#000; z-index:15; opacity:0; pointer-events:none; transition:opacity .45s ease; }
+    #scene-wipe.wipe-in  { opacity:1; }
+    #scene-wipe.wipe-out { opacity:0; }
+
+    /* ── TITLE ─────────────────────────────────────────────────────── */
+    #intro-overlay {
+      position:fixed; inset:0; background:#030c1c; z-index:100;
+      display:none; flex-direction:column; align-items:center;
+      justify-content:center; gap:18px; transition:opacity 1s ease;
+    }
+    #intro-overlay h1 {
+      font-family:'Orbitron',sans-serif; font-size:clamp(1.8rem,4vw,3rem);
+      font-weight:900; color:#b8d8f8; letter-spacing:.2em; text-align:center;
+      text-shadow:0 0 50px rgba(80,160,240,.4);
+    }
+    #intro-overlay p { font-size:.78rem; font-weight:300; color:rgba(130,190,240,.6); letter-spacing:.18em; }
+    #start-btn {
+      margin-top:18px; padding:12px 40px; background:transparent;
+      border:1px solid rgba(80,160,240,.55); border-radius:4px;
+      color:#b8d8f8; font-family:'Orbitron',sans-serif; font-size:.75rem;
+      letter-spacing:.2em; cursor:pointer; pointer-events:all; transition:all .25s;
+    }
+    #start-btn:hover { background:rgba(80,160,240,.1); box-shadow:0 0 24px rgba(80,160,240,.22); }
+
+    /* ── CRAFTING OVERLAY ──────────────────────────────────────────── */
+    #craft-overlay {
+      position:fixed; inset:0; background:rgba(1,5,14,.97);
+      z-index:50; display:none; flex-direction:column;
+      pointer-events:all; overflow:hidden;
+    }
+    #craft-overlay.open { display:flex; }
+
+    .craft-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:14px 24px; border-bottom:1px solid rgba(80,160,240,.18);
+      flex-shrink:0; background:rgba(4,10,24,.9);
+    }
+    .craft-title {
+      font-family:'Orbitron',sans-serif; font-size:.88rem; font-weight:700;
+      letter-spacing:.2em; color:#a8d4f5;
+      text-shadow:0 0 18px rgba(80,160,240,.4);
+    }
+    .craft-subtitle {
+      font-size:.64rem; font-weight:300; letter-spacing:.13em;
+      color:rgba(120,180,240,.4); margin-top:2px;
+    }
+    #craft-close {
+      padding:8px 20px; background:transparent;
+      border:1px solid rgba(80,160,240,.32); border-radius:4px;
+      color:#a8d4f5; font-family:'Orbitron',sans-serif;
+      font-size:.62rem; letter-spacing:.14em; cursor:pointer; transition:all .2s;
+    }
+    #craft-close:hover { background:rgba(80,160,240,.1); }
+
+    /* Three-column body */
+    .craft-body {
+      flex:1; display:grid; grid-template-columns:250px 1fr 232px;
+      overflow:hidden; min-height:0;
+    }
+    .craft-panel {
+      display:flex; flex-direction:column; overflow:hidden;
+      border-right:1px solid rgba(80,160,240,.1);
+    }
+    .craft-panel:last-child { border-right:none; }
+    .craft-panel-hdr {
+      font-family:'Orbitron',sans-serif; font-size:.54rem; letter-spacing:.2em;
+      color:#5aaeff; padding:10px 14px 8px; flex-shrink:0;
+      border-bottom:1px solid rgba(80,160,240,.1);
+      background:rgba(4,8,20,.6);
+    }
+    .craft-panel-body { flex:1; overflow-y:auto; padding:10px 12px; }
+    .craft-panel-body::-webkit-scrollbar { width:3px; }
+    .craft-panel-body::-webkit-scrollbar-thumb { background:rgba(80,160,240,.22); border-radius:2px; }
+
+    /* ── Inventory ── */
+    .inv-tier-lbl {
+      font-family:'Orbitron',sans-serif; font-size:.48rem; letter-spacing:.18em;
+      margin:10px 0 4px 2px; opacity:.75;
+    }
+    .inv-item {
+      display:flex; align-items:center; gap:8px; padding:5px 7px;
+      border-radius:4px; margin-bottom:1px; transition:background .15s;
+    }
+    .inv-item:hover { background:rgba(80,160,240,.07); }
+    .inv-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .inv-name { flex:1; font-size:.72rem; font-weight:300; color:#b0cce8; }
+    .inv-qty { font-size:.72rem; color:#5aaeff; font-family:'Orbitron',sans-serif; font-weight:400; }
+    .inv-empty { font-size:.7rem; color:rgba(100,160,220,.3); line-height:1.9; text-align:center; padding-top:22px; }
+
+    /* ── Synthesiser ── */
+    .synth-empty {
+      display:flex; flex-direction:column; align-items:center;
+      justify-content:center; height:100%; gap:12px;
+      color:rgba(100,165,230,.3); font-size:.75rem;
+      line-height:1.9; text-align:center; pointer-events:none;
+    }
+    .synth-empty-icon { font-size:2.8rem; opacity:.22; }
+    .synth-recipe-name {
+      font-family:'Orbitron',sans-serif; font-size:1.05rem;
+      font-weight:700; letter-spacing:.1em; margin-bottom:3px;
+    }
+    .synth-recipe-tier { font-size:.58rem; letter-spacing:.18em; opacity:.65; margin-bottom:8px; }
+    .synth-recipe-desc { font-size:.73rem; color:rgba(180,210,245,.6); line-height:1.65; font-weight:300; }
+    .synth-divider { height:1px; background:rgba(80,160,240,.12); margin:14px 0; }
+    .synth-ing-title {
+      font-family:'Orbitron',sans-serif; font-size:.48rem;
+      letter-spacing:.18em; color:rgba(100,165,230,.45); margin-bottom:9px;
+    }
+    .ing-slot {
+      display:flex; align-items:center; gap:8px; padding:8px 11px;
+      border-radius:5px; margin-bottom:5px; border:1px solid transparent;
+    }
+    .ing-ok     { background:rgba(70,220,110,.06); border-color:rgba(70,220,110,.16); }
+    .ing-missing{ background:rgba(255,70,50,.06);  border-color:rgba(255,70,50,.12);  }
+    .ing-dot  { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+    .ing-name { flex:1; font-size:.74rem; color:#cce4ff; font-weight:300; }
+    .ing-need { font-size:.68rem; color:rgba(140,190,230,.45); margin-right:6px; }
+    .ing-have { font-size:.7rem; font-weight:500; }
+    .ing-none { font-size:.7rem; color:rgba(120,175,230,.35); font-style:italic; }
+    .synth-craft-area { margin-top:16px; }
+    .synth-prev-badge {
+      font-family:'Orbitron',sans-serif; font-size:.55rem; letter-spacing:.13em;
+      color:#55cc88; text-align:center; padding:6px 10px;
+      background:rgba(70,200,110,.08); border-radius:4px; margin-bottom:9px;
+    }
+    .synth-btn {
+      width:100%; padding:13px 10px; font-family:'Orbitron',sans-serif;
+      font-size:.75rem; letter-spacing:.2em; border-radius:5px; cursor:pointer;
+      transition:all .22s; border:1px solid transparent;
+    }
+    .synth-btn-ready {
+      background:rgba(40,100,200,.22); border-color:rgba(80,160,240,.55);
+      color:#a8d4f5;
+    }
+    .synth-btn-ready:hover {
+      background:rgba(40,100,200,.38);
+      box-shadow:0 0 22px rgba(80,160,240,.25);
+    }
+    .synth-btn-off {
+      background:rgba(18,38,75,.18); border-color:rgba(60,90,130,.2);
+      color:rgba(110,150,190,.2); cursor:not-allowed;
+    }
+    @keyframes craftFlash {
+      0%  { background:rgba(70,220,110,.22); }
+      60% { background:rgba(70,220,110,.08); }
+      100%{ background:transparent; }
+    }
+    .synth-flash { animation:craftFlash .55s ease-out; }
+
+    /* ── Codex ── */
+    .codex-tier-lbl {
+      font-family:'Orbitron',sans-serif; font-size:.48rem; letter-spacing:.18em;
+      margin:10px 0 4px 2px; opacity:.75;
+    }
+    .codex-item {
+      display:flex; align-items:center; gap:7px; padding:6px 8px;
+      border-radius:4px; margin-bottom:1px; cursor:pointer;
+      border:1px solid transparent; transition:all .14s;
+    }
+    .codex-item:hover { background:rgba(80,160,240,.07); border-color:rgba(80,160,240,.14); }
+    .codex-selected { background:rgba(80,160,240,.13) !important; border-color:rgba(80,160,240,.38) !important; }
+    .codex-status { font-size:.76rem; width:15px; text-align:center; flex-shrink:0; }
+    .codex-st-locked  { color:rgba(80,110,150,.35); }
+    .codex-st-ready   { color:#5aaeff; }
+    .codex-st-crafted { color:#55cc88; }
+    .codex-name { font-size:.72rem; font-weight:300; color:#a8c8e8; flex:1; line-height:1.3; }
+    .codex-crafted .codex-name { color:#7ab898; }
+
+    /* ── Progress bar ── */
+    #craft-progress-bar {
+      position:absolute; top:0; left:0; right:0; height:2px;
+      background:rgba(80,160,240,.12);
+    }
+    #craft-progress-fill {
+      height:100%; background:linear-gradient(90deg,#3a8ee8,#88eebb);
+      transition:width .6s ease; width:0%;
+    }
+  </style>
+</head>
+<body>
+
+<!-- CUTSCENE -->
+<div id="cutscene">
+  <canvas id="scene-canvas"></canvas>
+  <div id="scene-wipe"></div>
+  <div id="cutscene-ui">
+    <div id="scene-location"></div>
+    <div id="narration-box">
+      <div id="narration-speaker"></div>
+      <div id="narration-text"></div>
+    </div>
+    <div id="scene-continue" onclick="nextScene()">CLICK TO CONTINUE ▶</div>
+    <div id="scene-skip" onclick="skipCutscene()">SKIP ▶▶</div>
+    <div id="scene-progress"></div>
+  </div>
+</div>
+
+<!-- TITLE -->
+<div id="intro-overlay">
+  <h1>REMAKE THE WORLD</h1>
+  <p>GALACTIC SCIENCE ADMINISTRATION — RESEARCH VESSEL AURORA</p>
+  <p style="color:rgba(130,190,240,.38);font-size:.72rem;">WELCOME, SCIENTIST. YOUR MISSION AWAITS.</p>
+  <button id="start-btn" onclick="startGame()">ENTER THE LAB</button>
+</div>
+
+<!-- 3D CANVAS -->
+<div id="canvas-container"></div>
+
+<!-- CONSOLE OVERLAY (opens when player approaches front console) -->
+<div id="console-overlay">
+  <div class="co-title">MASTER CONSOLE — GSA AURORA</div>
+  <div class="co-grid">
+    <!-- Recipes panel -->
+    <div class="co-panel">
+      <h3>Crafting Recipes</h3>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Quarks → Hadrons</div>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Proton + Neutron → Nucleus</div>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Nucleus + Electrons → Hydrogen</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>H + H + O → Water (locked)</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>C + O₂ → Carbon Dioxide (locked)</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Organic molecules → Glucose (locked)</div>
+    </div>
+    <!-- Crafted items -->
+    <div class="co-panel">
+      <h3>What You've Built</h3>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Particles discovered: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Atoms assembled: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Molecules synthesised: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Living cells: 0</div>
+      <div style="margin-top:14px;font-size:.72rem;color:rgba(100,170,240,.5);font-weight:300;">
+        Walk up to the Crafting Island —<br>the hex table in the centre of the lab!
+      </div>
+    </div>
+    <!-- Director Voss -->
+    <div class="co-panel" style="grid-column:1/-1">
+      <h3>Director Voss — Communications</h3>
+      <div class="voss-box">
+        <div class="voss-header">
+          <div class="voss-portrait">👩‍🚀</div>
+          <div class="voss-name">Director Voss &nbsp;·&nbsp; GSA Command</div>
+        </div>
+        <div class="voss-line" onclick="vossLine(0)">"How do I start crafting?"</div>
+        <div class="voss-line" onclick="vossLine(1)">"What's the mission again?"</div>
+        <div class="voss-line" onclick="vossLine(2)">"Tell me about the Space Imps."</div>
+        <div id="voss-reply" style="display:none;margin-top:8px;padding:12px 16px;background:rgba(80,160,240,.07);border-left:2px solid #5aaeff;border-radius:4px;font-size:.8rem;line-height:1.8;color:#cce4ff;font-weight:300;"></div>
+      </div>
+    </div>
+  </div>
+  <button id="co-close" onclick="closeConsole()">CLOSE CONSOLE</button>
+</div>
+
+<!-- CRAFTING OVERLAY -->
+<div id="craft-overlay">
+  <div id="craft-progress-bar"><div id="craft-progress-fill"></div></div>
+  <div class="craft-header">
+    <div>
+      <div class="craft-title">CRAFTING ISLAND — GSA AURORA</div>
+      <div class="craft-subtitle">Synthesise matter from elementary particles upward</div>
+    </div>
+    <button id="craft-close" onclick="closeCraftingStation()">CLOSE STATION</button>
+  </div>
+  <div class="craft-body">
+    <!-- Left: Inventory -->
+    <div class="craft-panel">
+      <div class="craft-panel-hdr">INVENTORY</div>
+      <div class="craft-panel-body" id="inv-list"></div>
+    </div>
+    <!-- Centre: Synthesiser -->
+    <div class="craft-panel">
+      <div class="craft-panel-hdr">SYNTHESISER</div>
+      <div class="craft-panel-body" id="synth-content"></div>
+    </div>
+    <!-- Right: Recipe Codex -->
+    <div class="craft-panel">
+      <div class="craft-panel-hdr">RECIPE CODEX</div>
+      <div class="craft-panel-body" id="codex-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="top-bar">
+    <div id="game-title">REMAKE THE WORLD</div>
+    <div id="gsa-badge">GSA RESEARCH VESSEL — AURORA</div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="controls-hint">WASD — MOVE<br>MOUSE — LOOK<br>CLICK — LOCK CURSOR<br>ESC — RELEASE<br>E — INTERACT</div>
+  <div id="story-panel">
+    <div id="speaker-name">Director Voss</div>
+    <div id="dialogue-text">Welcome aboard the Aurora! The Supply Bench in the back-right corner is feeding particles to the Crafting Island automatically — watch your inventory fill up. Approach the Master Console at the far wall to check recipes.</div>
+    <div id="dialogue-hint">[ WASD TO EXPLORE · E TO INTERACT ]</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════════════
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.05, 200);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;   // ← dimmer than before
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Darker background — deep navy rather than light sky
+scene.background = new THREE.Color(0x070f1c);
+scene.fog = new THREE.Fog(0x070f1c, 16, 34);
+
+camera.position.set(0, 1.7, 7);
+
+// ── Helpers ────────────────────────────────────────────────────────
+function box(w,h,d,color,rough,metal){
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color, roughness:rough??0.55, metalness:metal??0.05})
+  );
+}
+function place(mesh,x,y,z,ry){
+  mesh.position.set(x,y,z);
+  if(ry) mesh.rotation.y=ry;
+  mesh.castShadow=true; mesh.receiveShadow=true;
+  scene.add(mesh); return mesh;
+}
+
+// ── Lighting — significantly dimmer ───────────────────────────────
+scene.add(new THREE.AmbientLight(0x8aacc8, 0.9));   // was 2.2
+
+const sun = new THREE.DirectionalLight(0xc0d8f0, 0.7);  // was 1.4
+sun.position.set(5,14,7); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-22; sun.shadow.camera.right=22;
+sun.shadow.camera.top=22; sun.shadow.camera.bottom=-22;
+sun.shadow.camera.far=60;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x6090b8, 0.35);  // was 0.8
+fill.position.set(-8,6,-3); scene.add(fill);
+
+const strips=[];
+[[-7,4,-6],[7,4,-6],[-7,4,4],[7,4,4],[0,4,0]].forEach(([x,y,z])=>{
+  const l=new THREE.PointLight(0x5088c0, 0.65, 11);   // was 1.0
+  l.position.set(x,y,z); scene.add(l); strips.push(l);
+});
+
+// ── Room ───────────────────────────────────────────────────────────
+const RW=22, RH=5.2, RD=20;
+
+const floorMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(RW,RD),
+  new THREE.MeshStandardMaterial({color:0x0e1e30, roughness:0.55, metalness:0.08})
+);
+floorMesh.rotation.x=-Math.PI/2; floorMesh.receiveShadow=true; scene.add(floorMesh);
+
+const grid = new THREE.GridHelper(RW,22,0x1a3454,0x1a3454);
+grid.position.y=0.003;
+grid.material.opacity=0.55; grid.material.transparent=true;
+scene.add(grid);
+
+const ceilMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(RW,RD),
+  new THREE.MeshStandardMaterial({color:0x0a1828, roughness:0.7})
+);
+ceilMesh.rotation.x=Math.PI/2; ceilMesh.position.y=RH; scene.add(ceilMesh);
+
+const wMat = new THREE.MeshStandardMaterial({color:0x0d2038, roughness:0.65});
+function wall(w,h,d,x,y,z){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wMat);
+  m.position.set(x,y,z); m.receiveShadow=true; scene.add(m);
+}
+wall(RW,RH,0.22,  0,   RH/2,-RD/2);
+wall(RW,RH,0.22,  0,   RH/2, RD/2);
+wall(0.22,RH,RD,-RW/2, RH/2,   0);
+wall(0.22,RH,RD, RW/2, RH/2,   0);
+
+// Ceiling light panels — dimmer
+const panelMat = new THREE.MeshStandardMaterial({
+  color:0xffffff, emissive:0x6090cc, emissiveIntensity:0.5, roughness:0.25
+});
+[[-5,-5],[5,-5],[-5,5],[5,5],[0,0],[-5,0],[5,0]].forEach(([px,pz])=>{
+  const p=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.055,0.8),panelMat);
+  p.position.set(px,RH-0.03,pz); scene.add(p);
+  const pl=new THREE.PointLight(0x8ab8e0,0.28,5.5);   // was 0.5
+  pl.position.set(px,RH-0.35,pz); scene.add(pl);
+});
+
+// Accent stripe — back wall
+const stripe=new THREE.Mesh(
+  new THREE.BoxGeometry(RW,0.16,0.05),
+  new THREE.MeshStandardMaterial({color:0x2a6096,roughness:.45,metalness:.2})
+);
+stripe.position.set(0,2.2,-RD/2+0.14); scene.add(stripe);
+
+// GSA logo panel — back wall
+place(box(2.4,1.15,0.07,0x1e4878,0.38,0.28),0,3.1,-RD/2+0.15);
+place(box(1.9,0.72,0.05,0x2e6098,0.28,0.42),0,3.1,-RD/2+0.21);
+
+// ── Main workbench — back wall ─────────────────────────────────────
+const bMat=new THREE.MeshStandardMaterial({color:0x1a3456,roughness:0.42,metalness:0.22});
+
+const benchSurface=new THREE.Mesh(new THREE.BoxGeometry(5.6,0.1,1.5),bMat);
+benchSurface.position.set(0,1.0,-6.4);
+benchSurface.castShadow=true; benchSurface.receiveShadow=true; scene.add(benchSurface);
+
+[[-2.5,-6.9],[2.5,-6.9],[-2.5,-5.6],[2.5,-5.6]].forEach(([lx,lz])=>{
+  place(box(0.1,1.0,0.1,0x0e2240,0.5,0.2),lx,0.5,lz);
+});
+place(box(5.4,0.06,1.3,0x162c48,0.5,0.1),0,0.38,-6.4);
+
+// Monitor
+place(box(0.38,0.05,0.32,0x1c3858,0.4,0.12),0,1.07,-6.55);
+place(box(0.055,0.48,0.055,0x162c48,0.5,0.1),0,1.33,-6.55);
+place(box(1.52,0.94,0.07,0x1e3a58,0.32,0.12),0,1.88,-6.88);
+const screenMat=new THREE.MeshStandardMaterial({color:0x040e1e,emissive:0x0c3080,emissiveIntensity:0.9,roughness:0.1});
+const monScreen=new THREE.Mesh(new THREE.BoxGeometry(1.33,0.76,0.04),screenMat);
+monScreen.position.set(0,1.88,-6.84); scene.add(monScreen);
+place(box(0.88,0.03,0.28,0x1a3454,0.5,0.04),0,1.065,-6.1);
+place(box(0.5,0.025,0.36,0xe8f4ff,0.7,0.0),1.2,1.065,-6.15);
+
+// Left side console
+place(box(1.3,1.5,0.95,0x142e4a,0.42,0.14),-3.7,0.75,-6.8);
+const cScreen=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.54,0.04),
+  new THREE.MeshStandardMaterial({color:0x020810,emissive:0x082860,emissiveIntensity:0.8,roughness:0.1}));
+cScreen.position.set(-3.7,1.18,-6.33); scene.add(cScreen);
+
+// Right instrument tower
+place(box(1.05,2.3,0.9,0x162e4c,0.42,0.16),3.8,1.15,-6.8);
+[[0xff5533,[0.1,2.05]],[0x3399ff,[-0.1,1.85]],[0x33ff88,[0.1,1.65]],[0x3399ff,[-0.1,1.45]]].forEach(([col,[ox,oy]])=>{
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.032,8,8),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:2.2}));
+  d.position.set(3.8+ox,oy,-6.36); scene.add(d);
+});
+
+// ── Shelves — back wall sides ──────────────────────────────────────
+[-6.8,6.8].forEach(sx=>{
+  place(box(2.1,2.6,0.14,0x0e2038,0.52,0.08),sx,1.3,-9.82);
+  [0.25,0.82,1.42,2.0].forEach(sy=>place(box(1.88,0.055,0.3,0x162c44,0.48,0.1),sx,sy,-9.7));
+  const cols=[0x225588,0x2266aa,0x336688,0x3377aa,0x2255aa,0x224488];
+  [0,1,2,3,4,5].forEach(si=>{
+    place(box(0.16,0.24,0.16,cols[si],0.3,0.15),sx-0.44+(si%3)*0.44,[0.42,0.42,0.42,1.0,1.0,1.0][si],-9.62);
+  });
+});
+
+// ── Overhead duct ──────────────────────────────────────────────────
+place(box(RW-2,0.2,0.2,0x0e2038,0.55,0.22),0,RH-0.12,-2);
+[-6,-2,2,6].forEach(vx=>place(box(0.8,0.04,0.8,0x0a1a2e,0.65,0.12),vx,RH-0.02,2.5));
+
+// Floor accent strips
+[[-RD/2+1.4],[RD/2-1.4]].forEach(([fz])=>{
+  const fs=new THREE.Mesh(new THREE.BoxGeometry(RW,0.016,0.1),
+    new THREE.MeshStandardMaterial({color:0x2a6090,roughness:0.38,metalness:0.14}));
+  fs.position.set(0,0.009,fz); scene.add(fs);
+});
+
+// ── Central hologram pedestal ──────────────────────────────────────
+const pedMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.75,0.1,36),
+  new THREE.MeshStandardMaterial({color:0x162c44,roughness:0.32,metalness:0.38}));
+pedMesh.position.set(0,0.05,0); pedMesh.receiveShadow=true; scene.add(pedMesh);
+
+const ringMesh=new THREE.Mesh(new THREE.TorusGeometry(0.65,0.022,14,80),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1868c0,emissiveIntensity:1.1}));
+ringMesh.rotation.x=Math.PI/2; ringMesh.position.y=0.11; scene.add(ringMesh);
+
+// Central atom — same position
+const atomGroup=new THREE.Group();
+atomGroup.position.set(0,1.5,0); scene.add(atomGroup);
+const nucleus=new THREE.Mesh(new THREE.SphereGeometry(0.14,20,20),
+  new THREE.MeshStandardMaterial({color:0xffd060,emissive:0xffaa00,emissiveIntensity:1.4,roughness:0.22}));
+atomGroup.add(nucleus);
+const orbitData=[
+  {color:0x3a9eff,r:0.45,rx:0,ry:0,speed:1.1},
+  {color:0x70c8ff,r:0.64,rx:Math.PI/2.2,ry:0.8,speed:0.72},
+  {color:0x9ad8ff,r:0.80,rx:Math.PI/3.1,ry:-0.5,speed:0.48},
+];
+const electrons=[];
+orbitData.forEach(o=>{
+  const orbit=new THREE.Mesh(new THREE.TorusGeometry(o.r,0.007,8,90),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:0.6,transparent:true,opacity:0.65}));
+  orbit.rotation.x=o.rx; orbit.rotation.y=o.ry; atomGroup.add(orbit);
+  const eDot=new THREE.Mesh(new THREE.SphereGeometry(0.042,10,10),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:2.4}));
+  atomGroup.add(eDot);
+  electrons.push({mesh:eDot,r:o.r,speed:o.speed,angle:Math.random()*Math.PI*2,orbit});
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 1) MASTER CONSOLE — FRONT WALL (z ≈ +8)
+// ═══════════════════════════════════════════════════════════════════
+const consoleZ = 8.5;
+
+// Main console body — wide, impressive
+const masterConsole=new THREE.Mesh(new THREE.BoxGeometry(9,1.5,0.9),bMat);
+masterConsole.position.set(0,0.75,consoleZ);
+masterConsole.castShadow=true; masterConsole.receiveShadow=true; scene.add(masterConsole);
+
+// Raised back panel
+place(box(9,2.8,0.15,0x0e2038,0.5,0.12),0,2.15,consoleZ+0.38);
+// Horizontal divider stripe
+place(box(9,0.1,0.12,0x2a6090,0.4,0.2),0,2.8,consoleZ+0.42);
+// Accent stripe at base
+place(box(9,0.08,0.92,0x2a6090,0.4,0.2),0,1.54,consoleZ);
+
+// Three large screens on back panel
+const screenColors=[0x0830a0,0x083090,0x0828a0];
+[-2.8,0,2.8].forEach((sx,i)=>{
+  const sc=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.8,0.04),
+    new THREE.MeshStandardMaterial({color:0x020a1c,emissive:screenColors[i],emissiveIntensity:0.75,roughness:0.08}));
+  sc.position.set(sx,2.28,consoleZ+0.45); scene.add(sc);
+  // Screen glow light
+  const sg=new THREE.PointLight(0x3060d0,0.5,3.5);
+  sg.position.set(sx,2.28,consoleZ+0.7); scene.add(sg);
+  // Label plate below screen
+  place(box(2.2,0.2,0.04,0x162c4a,0.5,0.2),sx,1.2,consoleZ+0.45);
+});
+
+// Control surface — buttons, dials, sliders
+for(let bx=-3.8;bx<=3.8;bx+=0.55){
+  const btn=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.045,10),
+    new THREE.MeshStandardMaterial({color:0x1a3456,roughness:0.45,metalness:0.3}));
+  btn.position.set(bx,1.55,consoleZ+0.1);
+  btn.rotation.x=Math.PI/2; scene.add(btn);
+}
+// Lit indicator row
+const indicatorCols=[0xff5533,0x3399ff,0x33ff88,0x3399ff,0xffcc33,0x3399ff,0xff5533,0x33ff88];
+indicatorCols.forEach((col,i)=>{
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.038,8,8),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.8}));
+  d.position.set(-3.3+i*0.95,1.35,consoleZ+0.42); scene.add(d);
+});
+
+// Side wings of console
+[-4.8,4.8].forEach(wx=>{
+  place(box(1.2,1.2,0.8,0x0e2038,0.5,0.14),wx,0.6,consoleZ);
+  const ws=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.65,0.04),
+    new THREE.MeshStandardMaterial({color:0x020810,emissive:0x061848,emissiveIntensity:0.7,roughness:0.1}));
+  ws.position.set(wx,0.8,consoleZ+0.38); scene.add(ws);
+});
+
+// "INTERACT" label plate visible to player approaching
+place(box(1.4,0.22,0.04,0x1a4878,0.4,0.25),0,0.22,consoleZ+0.46);
+
+// ═══════════════════════════════════════════════════════════════════
+// 2) CRAFTING ISLAND — taller hex table, anchored to left wall
+// ═══════════════════════════════════════════════════════════════════
+// Pushed to x=-7.0 — closer to left wall (at x=-11).
+// Wall connection conduit runs overhead from island to wall.
+const CX=-7.0, CZ=-2.2;
+const TABLE_H = 0.55;  // taller base height (was 0.22)
+const TABLE_TOP = TABLE_H; // top surface y (base sits on floor, center at h/2)
+
+const archMat=new THREE.MeshStandardMaterial({color:0x0e2038,roughness:0.42,metalness:0.35});
+
+// ── Main hexagonal base — taller ───────────────────────────────
+const hexBaseMat=new THREE.MeshStandardMaterial({color:0x0e2240,roughness:0.38,metalness:0.28});
+const hexBase=new THREE.Mesh(new THREE.CylinderGeometry(2.1,2.38,TABLE_H,6),hexBaseMat);
+hexBase.position.set(CX,TABLE_H/2,CZ);
+hexBase.castShadow=true; hexBase.receiveShadow=true; scene.add(hexBase);
+
+// Hex top surface
+const hexTop=new THREE.Mesh(new THREE.CylinderGeometry(2.08,2.08,0.07,6),
+  new THREE.MeshStandardMaterial({color:0x162e4a,roughness:0.3,metalness:0.35}));
+hexTop.position.set(CX,TABLE_TOP+0.035,CZ); scene.add(hexTop);
+
+// Glowing hex edge trim
+const hexTrim=new THREE.Mesh(new THREE.TorusGeometry(2.1,0.03,8,6),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1a5ab8,emissiveIntensity:0.9}));
+hexTrim.rotation.x=Math.PI/2; hexTrim.position.set(CX,TABLE_TOP+0.06,CZ); scene.add(hexTrim);
+
+// Recess stripe around the base mid-height
+const recStripeMat=new THREE.MeshStandardMaterial({color:0x2a6090,roughness:0.4,metalness:0.25,
+  emissive:0x0a3060,emissiveIntensity:0.4});
+const recStripe=new THREE.Mesh(new THREE.CylinderGeometry(2.12,2.12,0.06,6),recStripeMat);
+recStripe.position.set(CX,TABLE_H*0.55,CZ); scene.add(recStripe);
+
+// Six legs floor to underside
+for(let i=0;i<6;i++){
+  const a=i/6*Math.PI*2+Math.PI/6;
+  const lx=CX+Math.cos(a)*1.82, lz=CZ+Math.sin(a)*1.82;
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,TABLE_H,8),
+    new THREE.MeshStandardMaterial({color:0x0a1828,roughness:0.45,metalness:0.45}));
+  leg.position.set(lx,TABLE_H/2,lz); scene.add(leg);
+  // Foot pad
+  const foot=new THREE.Mesh(new THREE.CylinderGeometry(0.11,0.11,0.025,8),
+    new THREE.MeshStandardMaterial({color:0x162c40,roughness:0.5,metalness:0.3}));
+  foot.position.set(lx,0.012,lz); scene.add(foot);
+}
+
+// ── Wall connection — overhead conduit arm ─────────────────────
+// Vertical riser on the island side (rises from table edge to ceiling)
+const riserX=CX-2.05;
+const riser=new THREE.Mesh(new THREE.BoxGeometry(0.12,2.0,0.12),archMat);
+riser.position.set(riserX, TABLE_TOP+1.0+0.55, CZ); scene.add(riser);
+// Horizontal conduit from riser to left wall
+const conduitLen=Math.abs(riserX-(-RW/2+0.14));
+const conduit=new THREE.Mesh(new THREE.BoxGeometry(conduitLen,0.12,0.12),archMat);
+conduit.position.set((riserX+(-RW/2+0.14))/2, TABLE_TOP+2.15, CZ); scene.add(conduit);
+// Conduit wall bracket
+const bracket=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.28,0.22),
+  new THREE.MeshStandardMaterial({color:0x0c1828,roughness:0.45,metalness:0.4}));
+bracket.position.set(-RW/2+0.2, TABLE_TOP+2.15, CZ); scene.add(bracket);
+// Glowing stripe along conduit top (power channel)
+const conduitGlow=new THREE.Mesh(new THREE.BoxGeometry(conduitLen,0.025,0.06),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1a5ab8,emissiveIntensity:1.1}));
+conduitGlow.position.set((riserX+(-RW/2+0.14))/2, TABLE_TOP+2.22, CZ); scene.add(conduitGlow);
+// Two junction nodes along the conduit
+[-1.0,0.8].forEach(ox=>{
+  const jx=riserX+ox;
+  if(jx>(-RW/2+0.3)&&jx<riserX){
+    const jn=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.22,0.22),archMat);
+    jn.position.set(jx,TABLE_TOP+2.15,CZ); scene.add(jn);
+  }
+});
+// Downward cable from conduit to riser junction
+const cableDown=new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,2.0,6),
+  new THREE.MeshStandardMaterial({color:0x0a1828,roughness:0.55,metalness:0.3}));
+cableDown.position.set(riserX,TABLE_TOP+1.15,CZ); scene.add(cableDown);
+
+// ── Central raised pedestal + atom column ──────────────────────
+const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(0.40,0.44,0.42,20),
+  new THREE.MeshStandardMaterial({color:0x162c44,roughness:0.32,metalness:0.42}));
+pedestal.position.set(CX,TABLE_TOP+0.21,CZ); pedestal.castShadow=true; scene.add(pedestal);
+
+// Thin column from pedestal top to atom
+const column=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.55,12),
+  new THREE.MeshStandardMaterial({color:0x1a3860,roughness:0.4,metalness:0.5}));
+column.position.set(CX,TABLE_TOP+0.63+0.775,CZ); scene.add(column);
+
+// Overhead arm and scanner
+const overArm=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.09,1.4),archMat);
+overArm.position.set(CX,TABLE_TOP+3.3,CZ-0.4); scene.add(overArm);
+const vPost=new THREE.Mesh(new THREE.BoxGeometry(0.09,2.0,0.09),archMat);
+vPost.position.set(CX,TABLE_TOP+2.3,CZ-1.1); scene.add(vPost);
+const instCluster=new THREE.Mesh(new THREE.BoxGeometry(0.28,0.22,0.28),
+  new THREE.MeshStandardMaterial({color:0x0c1e34,roughness:0.38,metalness:0.3}));
+instCluster.position.set(CX,TABLE_TOP+3.15,CZ-1.05); scene.add(instCluster);
+const lens=new THREE.Mesh(new THREE.SphereGeometry(0.07,12,12),
+  new THREE.MeshStandardMaterial({color:0x4488cc,emissive:0x2266aa,emissiveIntensity:1.4}));
+lens.position.set(CX,TABLE_TOP+2.95,CZ-1.05); scene.add(lens);
+const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.012,0.045,0.95,8),
+  new THREE.MeshStandardMaterial({color:0x2266cc,emissive:0x1144aa,emissiveIntensity:0.8,transparent:true,opacity:0.35}));
+beam.position.set(CX,TABLE_TOP+2.47,CZ-1.05); scene.add(beam);
+
+// Readout screen on a gooseneck
+const screenStand=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.9,8),archMat);
+screenStand.position.set(CX-2.4,TABLE_TOP+0.45,CZ+0.3); scene.add(screenStand);
+const screenHead=new THREE.Mesh(new THREE.BoxGeometry(0.72,0.5,0.06),
+  new THREE.MeshStandardMaterial({color:0x0a1e34,roughness:0.3,metalness:0.2}));
+screenHead.position.set(CX-2.4,TABLE_TOP+1.05,CZ+0.3); scene.add(screenHead);
+const screenDisplay=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.38,0.04),
+  new THREE.MeshStandardMaterial({color:0x010a18,emissive:0x083060,emissiveIntensity:1.0,roughness:0.06}));
+screenDisplay.position.set(CX-2.4,TABLE_TOP+1.05,CZ+0.33); scene.add(screenDisplay);
+const screenGlow=new THREE.PointLight(0x2050a0,0.4,2.2);
+screenGlow.position.set(CX-2.4,TABLE_TOP+1.1,CZ+0.6); scene.add(screenGlow);
+
+// ── Six element PODS around the perimeter ─────────────────────
+const POD_R = 1.52;
+const podData=[
+  {label:'Up Quark',    color:0x3a9eff, emissive:0x1a5acc, elemCol:0x88ccff},
+  {label:'Down Quark',  color:0xff9944, emissive:0xcc6600, elemCol:0xffcc88},
+  {label:'Electron',    color:0x44ffaa, emissive:0x00cc66, elemCol:0x88ffcc},
+  {label:'Gluon',       color:0xff44aa, emissive:0xcc0066, elemCol:0xff88cc},
+  {label:'Photon',      color:0xffffaa, emissive:0xcccc00, elemCol:0xffffff},
+  {label:'Neutron',     color:0xaa88ff, emissive:0x6644cc, elemCol:0xccbbff},
+];
+const pods=[];
+const podSpheres=[];
+
+for(let i=0;i<6;i++){
+  const angle=i/6*Math.PI*2 - Math.PI/6;
+  const px=CX+Math.cos(angle)*POD_R;
+  const pz=CZ+Math.sin(angle)*POD_R;
+  const TY=TABLE_TOP;
+
+  const podOuter=new THREE.Mesh(new THREE.CylinderGeometry(0.30,0.30,0.20,20),
+    new THREE.MeshStandardMaterial({color:0x0a1a30,roughness:0.4,metalness:0.3}));
+  podOuter.position.set(px,TY+0.10,pz); scene.add(podOuter);
+
+  const podInner=new THREE.Mesh(new THREE.CylinderGeometry(0.21,0.18,0.14,20),
+    new THREE.MeshStandardMaterial({color:0x060e1e,roughness:0.25,metalness:0.1}));
+  podInner.position.set(px,TY+0.12,pz); scene.add(podInner);
+
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(0.285,0.020,8,32),
+    new THREE.MeshStandardMaterial({color:podData[i].color,emissive:podData[i].emissive,emissiveIntensity:1.1}));
+  rim.rotation.x=Math.PI/2; rim.position.set(px,TY+0.20,pz); scene.add(rim);
+
+  const podLight=new THREE.PointLight(podData[i].color,0.45,1.3);
+  podLight.position.set(px,TY+0.55,pz); scene.add(podLight);
+
+  const elemSphere=new THREE.Mesh(new THREE.SphereGeometry(0.10,14,14),
+    new THREE.MeshStandardMaterial({color:podData[i].elemCol,emissive:podData[i].emissive,
+      emissiveIntensity:0.7,roughness:0.22,metalness:0.1}));
+  elemSphere.position.set(px,TY+0.50,pz); scene.add(elemSphere);
+
+  const fil=new THREE.Mesh(new THREE.CylinderGeometry(0.006,0.006,0.28,6),
+    new THREE.MeshStandardMaterial({color:podData[i].color,emissive:podData[i].emissive,
+      emissiveIntensity:0.7,transparent:true,opacity:0.5}));
+  fil.position.set(px,TY+0.36,pz); scene.add(fil);
+
+  pods.push({rim,podLight,angle:i/6*Math.PI*2,i});
+  podSpheres.push(elemSphere);
+}
+
+// ── Small floating atom above central pedestal ─────────────────
+const craftAtomGroup=new THREE.Group();
+craftAtomGroup.position.set(CX,TABLE_TOP+1.65,CZ); scene.add(craftAtomGroup);
+
+const craftNucleus=new THREE.Mesh(new THREE.SphereGeometry(0.09,18,18),
+  new THREE.MeshStandardMaterial({color:0xffd060,emissive:0xffaa00,emissiveIntensity:1.5,roughness:0.2}));
+craftAtomGroup.add(craftNucleus);
+
+const craftOrbitData=[
+  {color:0x3a9eff,r:0.26,rx:0,ry:0,speed:1.6},
+  {color:0x70c8ff,r:0.38,rx:Math.PI/2.2,ry:0.9,speed:1.1},
+  {color:0x9ad8ff,r:0.48,rx:Math.PI/3.5,ry:-0.6,speed:0.75},
+];
+const craftElectrons=[];
+craftOrbitData.forEach(o=>{
+  const orbit=new THREE.Mesh(new THREE.TorusGeometry(o.r,0.006,8,64),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:0.65,transparent:true,opacity:0.6}));
+  orbit.rotation.x=o.rx; orbit.rotation.y=o.ry; craftAtomGroup.add(orbit);
+  const eDot=new THREE.Mesh(new THREE.SphereGeometry(0.028,10,10),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:2.5}));
+  craftAtomGroup.add(eDot);
+  craftElectrons.push({mesh:eDot,r:o.r,speed:o.speed,angle:Math.random()*Math.PI*2,orbit});
+});
+
+const craftRing=new THREE.Mesh(new THREE.TorusGeometry(0.36,0.018,10,60),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1868c0,emissiveIntensity:1.2}));
+craftRing.rotation.x=Math.PI/2; craftRing.position.set(CX,TABLE_TOP+0.63,CZ); scene.add(craftRing);
+
+const craftLight=new THREE.PointLight(0x2060c0,0.85,6.0);
+craftLight.position.set(CX,TABLE_TOP+2.0,CZ); scene.add(craftLight);
+
+// ═══════════════════════════════════════════════════════════════════
+// 3) AIRLOCK — BACK WALL (z = -RD/2), left side
+// ═══════════════════════════════════════════════════════════════════
+const airlockX = -4.5;
+const airlockZ = -RD/2 + 0.35;
+
+// Airlock surround / frame
+place(box(2.8,3.8,0.3,0x0c2038,0.5,0.18),airlockX,1.9,airlockZ);
+// Frame edges — lit strips
+const alFrameMat=new THREE.MeshStandardMaterial({color:0x2a6090,emissive:0x1a4878,emissiveIntensity:0.8});
+[[-1.3,0],[1.3,0],[0,-1.8],[0,1.7]].forEach(([ox,oy])=>{
+  const isH=Math.abs(oy)>0;
+  const fw=isH?2.6:0.1, fh=isH?0.1:3.6;
+  const fm=new THREE.Mesh(new THREE.BoxGeometry(fw,fh,0.05),alFrameMat);
+  fm.position.set(airlockX+ox,1.9+oy,airlockZ+0.16); scene.add(fm);
+});
+
+// Door — two sliding panels, currently closed
+const doorMat=new THREE.MeshStandardMaterial({color:0x0e2840,roughness:0.4,metalness:0.35});
+const doorL=new THREE.Mesh(new THREE.BoxGeometry(1.15,3.4,0.12),doorMat);
+doorL.position.set(airlockX-0.58,1.9,airlockZ+0.15); scene.add(doorL);
+const doorR=new THREE.Mesh(new THREE.BoxGeometry(1.15,3.4,0.12),doorMat);
+doorR.position.set(airlockX+0.58,1.9,airlockZ+0.15); scene.add(doorR);
+
+// Door centre seam glow
+const seamMat=new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x3a8ee8,emissiveIntensity:1.0});
+const seam=new THREE.Mesh(new THREE.BoxGeometry(0.025,3.4,0.04),seamMat);
+seam.position.set(airlockX,1.9,airlockZ+0.22); scene.add(seam);
+
+// Porthole window in door centre top
+const porthole=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.12,24),
+  new THREE.MeshStandardMaterial({color:0x081828,roughness:0.05,metalness:0.2,transparent:true,opacity:0.88}));
+porthole.position.set(airlockX,2.9,airlockZ+0.22); porthole.rotation.x=Math.PI/2; scene.add(porthole);
+// Porthole frame
+const phFrame=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.035,10,32),
+  new THREE.MeshStandardMaterial({color:0x2a5880,roughness:0.38,metalness:0.4}));
+phFrame.position.set(airlockX,2.9,airlockZ+0.25); scene.add(phFrame);
+
+// Control panel beside airlock
+place(box(0.55,1.0,0.12,0x0c1e34,0.45,0.2),airlockX+1.65,1.1,airlockZ+0.2);
+[[0xff5533,0.72],[0x33cc88,0.88],[0x3399ff,1.04]].forEach(([col,cy])=>{
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.04,10),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.6}));
+  b.position.set(airlockX+1.65,cy,airlockZ+0.26); b.rotation.x=Math.PI/2; scene.add(b);
+});
+
+// Overhead "AIRLOCK" label light bar
+const alBar=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.12,0.08),
+  new THREE.MeshStandardMaterial({color:0xff8833,emissive:0xff5500,emissiveIntensity:0.6}));
+alBar.position.set(airlockX,3.82,airlockZ+0.2); scene.add(alBar);
+const alLight=new THREE.PointLight(0xff6600,0.4,2.5);
+alLight.position.set(airlockX,3.5,airlockZ+0.5); scene.add(alLight);
+
+// ═══════════════════════════════════════════════════════════════════
+// 4) SPACE WINDOW — RIGHT WALL, large panoramic viewport
+// ═══════════════════════════════════════════════════════════════════
+const winX = RW/2 - 0.20;
+const WIN_CY=2.7, WIN_CZ=-0.5, WIN_W=5.6, WIN_H=2.8;
+
+// Heavy structural outer hull frame
+const hullMat=new THREE.MeshStandardMaterial({color:0x0a1828,roughness:0.55,metalness:0.5});
+place(box(0.32,WIN_H+0.32,WIN_W+0.32,0x0a1828,0.55,0.5),winX,WIN_CY,WIN_CZ); // surround slab
+// Raised inner frame (4 bars)
+place(box(0.18,WIN_H+0.12,0.18,0x102030,0.45,0.45),winX,WIN_CY,WIN_CZ-WIN_W/2-0.09); // left bar
+place(box(0.18,WIN_H+0.12,0.18,0x102030,0.45,0.45),winX,WIN_CY,WIN_CZ+WIN_W/2+0.09); // right bar
+place(box(0.16,0.18,WIN_W+0.18,0x102030,0.45,0.45),winX,WIN_CY+WIN_H/2+0.09,WIN_CZ); // top
+place(box(0.16,0.18,WIN_W+0.18,0x102030,0.45,0.45),winX,WIN_CY-WIN_H/2-0.09,WIN_CZ); // bottom
+// Cross-struts — three vertical + two horizontal
+[-1.8,0,1.8].forEach(oz=>{
+  const strt=new THREE.Mesh(new THREE.BoxGeometry(0.08,WIN_H,0.07),
+    new THREE.MeshStandardMaterial({color:0x162a40,roughness:0.5,metalness:0.4}));
+  strt.position.set(winX,WIN_CY,WIN_CZ+oz); scene.add(strt);
+});
+[-0.62,0.62].forEach(oy=>{
+  const strt=new THREE.Mesh(new THREE.BoxGeometry(0.06,0.07,WIN_W),
+    new THREE.MeshStandardMaterial({color:0x162a40,roughness:0.5,metalness:0.4}));
+  strt.position.set(winX,WIN_CY+oy,WIN_CZ); scene.add(strt);
+});
+// Glowing frame seal strip — emissive inner edge
+const frameSeal=new THREE.Mesh(new THREE.BoxGeometry(0.06,WIN_H+0.02,WIN_W+0.02),
+  new THREE.MeshStandardMaterial({color:0x1a4060,emissive:0x0a2840,emissiveIntensity:0.6,roughness:0.3}));
+frameSeal.position.set(winX,WIN_CY,WIN_CZ); scene.add(frameSeal);
+
+// Window sill with depth lip
+place(box(0.32,0.14,WIN_W+0.28,0x142030,0.48,0.4),winX,WIN_CY-WIN_H/2-0.07,WIN_CZ);
+// Top canopy shelf
+place(box(0.32,0.10,WIN_W+0.24,0x0e1a2c,0.5,0.38),winX,WIN_CY+WIN_H/2+0.05,WIN_CZ);
+
+// Glass — tinted deep-blue, slightly reflective
+const glassMat=new THREE.MeshStandardMaterial({
+  color:0x020814,roughness:0.0,metalness:0.18,transparent:true,opacity:0.72,
+  envMapIntensity:0.3
+});
+const glass=new THREE.Mesh(new THREE.BoxGeometry(0.055,WIN_H,WIN_W),glassMat);
+glass.position.set(winX,WIN_CY,WIN_CZ); scene.add(glass);
+
+// ── Space scene — deep field layers beyond the wall ────────────────
+const SPACE_X = winX+0.5;
+
+// Nebula backdrop — large soft glow clouds using transparent spheres
+const nebulaDef=[
+  {x:0.8,y:0.4,z:0.6,  r:1.4, c:0x0a0830, o:0.18},
+  {x:2.2,y:-0.3,z:-0.8, r:0.9, c:0x180820, o:0.14},
+  {x:0.4,y:0.8,z:-1.4,  r:1.1, c:0x060c28, o:0.20},
+  {x:1.6,y:-0.1,z:1.2,  r:1.2, c:0x0c0a24, o:0.16},
+  {x:3.0,y:0.5,z:-0.2,  r:1.6, c:0x0a1420, o:0.12},
+];
+nebulaDef.forEach(n=>{
+  const nm=new THREE.Mesh(new THREE.SphereGeometry(n.r,10,10),
+    new THREE.MeshStandardMaterial({color:n.c,transparent:true,opacity:n.o,roughness:1,depthWrite:false}));
+  nm.position.set(SPACE_X+n.x,WIN_CY+n.y,WIN_CZ+n.z); scene.add(nm);
+});
+
+// Stars — varied sizes and colours for realism
+const starDefs=[
+  {n:90,  sz:0.010, col:0xffffff, ei:4.0},  // tiny white
+  {n:40,  sz:0.016, col:0xfff4e0, ei:3.5},  // warm yellow-white
+  {n:25,  sz:0.022, col:0xb0c8ff, ei:3.8},  // blue-white
+  {n:15,  sz:0.028, col:0xffddaa, ei:3.2},  // orange giant
+  {n:8,   sz:0.038, col:0xff9988, ei:2.8},  // red giant
+  {n:5,   sz:0.055, col:0x88aaff, ei:2.4},  // blue supergiant
+  {n:3,   sz:0.080, col:0xffffcc, ei:2.2},  // bright foreground star
+];
+const twinkleStars=[];
+const rng=(a,b)=>a+(b-a)*Math.random();
+starDefs.forEach(sd=>{
+  for(let i=0;i<sd.n;i++){
+    const sm=new THREE.Mesh(new THREE.SphereGeometry(sd.sz,5,5),
+      new THREE.MeshStandardMaterial({color:sd.col,emissive:sd.col,emissiveIntensity:sd.ei,roughness:0}));
+    sm.position.set(SPACE_X+rng(0.1,4.0), WIN_CY+rng(-WIN_H/2+0.1,WIN_H/2-0.1), WIN_CZ+rng(-WIN_W/2+0.1,WIN_W/2-0.1));
+    sm._baseEI=sd.ei; sm._phase=Math.random()*Math.PI*2; sm._freq=rng(0.4,2.2);
+    scene.add(sm); twinkleStars.push(sm);
+  }
+});
+
+// Gas giant planet — multi-layered with atmosphere and bands
+const planetGroup=new THREE.Group();
+planetGroup.position.set(SPACE_X+2.6,WIN_CY+0.5,WIN_CZ-0.9);
+scene.add(planetGroup);
+
+// Deep core
+const planetCore=new THREE.Mesh(new THREE.SphereGeometry(0.48,24,24),
+  new THREE.MeshStandardMaterial({color:0x1a3a5c,roughness:0.8,metalness:0.0}));
+planetGroup.add(planetCore);
+// Cloud bands (slightly larger spheres, transparent)
+[[0.492,0x2a4a6c,0.55],[0.506,0x152845,0.45],[0.518,0x203558,0.35]].forEach(([r,c,o])=>{
+  const band=new THREE.Mesh(new THREE.SphereGeometry(r,18,18),
+    new THREE.MeshStandardMaterial({color:c,transparent:true,opacity:o,roughness:1,depthWrite:false}));
+  planetGroup.add(band);
+});
+// Atmosphere haze ring (slightly bigger, very transparent)
+const atmos=new THREE.Mesh(new THREE.SphereGeometry(0.54,16,16),
+  new THREE.MeshStandardMaterial({color:0x3a6090,transparent:true,opacity:0.18,roughness:1,depthWrite:false,side:THREE.FrontSide}));
+planetGroup.add(atmos);
+// Planet ring system — tilted disc
+const pRingGeo=new THREE.TorusGeometry(0.72,0.14,4,60);
+const pRing=new THREE.Mesh(pRingGeo,
+  new THREE.MeshStandardMaterial({color:0x3a5070,transparent:true,opacity:0.55,roughness:0.9,depthWrite:false,side:THREE.DoubleSide}));
+pRing.rotation.x=0.52; pRing.rotation.z=0.15; planetGroup.add(pRing);
+// Inner ring gap
+const pRingInner=new THREE.Mesh(new THREE.TorusGeometry(0.62,0.04,4,40),
+  new THREE.MeshStandardMaterial({color:0x204060,transparent:true,opacity:0.3,roughness:1,depthWrite:false,side:THREE.DoubleSide}));
+pRingInner.rotation.copy(pRing.rotation); planetGroup.add(pRingInner);
+// Planet glow point light
+const planetGlow=new THREE.PointLight(0x3060a0,0.28,2.5);
+planetGlow.position.set(SPACE_X+2.6,WIN_CY+0.5,WIN_CZ-0.9); scene.add(planetGlow);
+
+// Distant moon
+const moonMesh=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,12),
+  new THREE.MeshStandardMaterial({color:0x8898a8,roughness:0.88,metalness:0.02}));
+moonMesh.position.set(SPACE_X+3.1,WIN_CY+0.9,WIN_CZ-0.3); scene.add(moonMesh);
+
+// Bright distant star / sun glow (off-frame, just the flare)
+const sunGlow=new THREE.Mesh(new THREE.SphereGeometry(0.18,10,10),
+  new THREE.MeshStandardMaterial({color:0xfffde0,emissive:0xffee88,emissiveIntensity:3.5,roughness:0}));
+sunGlow.position.set(SPACE_X+0.6,WIN_CY+WIN_H/2-0.3,WIN_CZ+WIN_W/2-0.4); scene.add(sunGlow);
+const sunLight=new THREE.PointLight(0xfff5cc,0.55,5.0);
+sunLight.position.copy(sunGlow.position); scene.add(sunLight);
+// Sun corona rings
+[0.28,0.42,0.62].forEach((r,i)=>{
+  const cr=new THREE.Mesh(new THREE.TorusGeometry(r,0.008,4,32),
+    new THREE.MeshStandardMaterial({color:0xffee88,emissive:0xffcc44,
+      emissiveIntensity:1.2-i*0.35,transparent:true,opacity:0.25-i*0.07,roughness:0}));
+  cr.rotation.x=Math.PI/2+0.3; cr.rotation.y=0.4;
+  cr.position.copy(sunGlow.position); scene.add(cr);
+});
+
+// Drifting asteroids — more varied, better materials
+const floaters=[];
+const roidMats=[
+  new THREE.MeshStandardMaterial({color:0x4a5a6a,roughness:0.92,metalness:0.08}),
+  new THREE.MeshStandardMaterial({color:0x3a4858,roughness:0.88,metalness:0.12}),
+  new THREE.MeshStandardMaterial({color:0x5a6070,roughness:0.95,metalness:0.05}),
+  new THREE.MeshStandardMaterial({color:0x303848,roughness:0.90,metalness:0.14}),
+  new THREE.MeshStandardMaterial({color:0x4a3830,roughness:0.93,metalness:0.06}), // iron-red
+];
+for(let i=0;i<9;i++){
+  const sz=rng(0.04,0.22);
+  // Use IcosahedronGeometry detail 1 for the larger ones
+  const geo=sz>0.12?new THREE.IcosahedronGeometry(sz,1):new THREE.IcosahedronGeometry(sz,0);
+  const ast=new THREE.Mesh(geo, roidMats[i%roidMats.length]);
+  ast.position.set(SPACE_X+rng(0.2,3.5), WIN_CY+rng(-WIN_H/2+0.15,WIN_H/2-0.15), WIN_CZ+rng(-WIN_W/2+0.2,WIN_W/2-0.2));
+  ast.rotation.set(rng(0,Math.PI*2),rng(0,Math.PI*2),rng(0,Math.PI*2));
+  ast._speedZ=(rng(0.0015,0.005))*(Math.random()<0.5?1:-1);
+  ast._speedY=(rng(0,0.0006))*(Math.random()<0.5?1:-1);
+  ast._rotX=rng(0.001,0.005)*(Math.random()<0.5?1:-1);
+  ast._rotY=rng(0.001,0.006)*(Math.random()<0.5?1:-1);
+  scene.add(ast); floaters.push(ast);
+}
+// Small debris field cluster
+for(let i=0;i<14;i++){
+  const db=new THREE.Mesh(new THREE.IcosahedronGeometry(rng(0.01,0.04),0),roidMats[i%2]);
+  db.position.set(SPACE_X+rng(0.5,2.0),WIN_CY+rng(-0.5,0.5),WIN_CZ+rng(-1.5,1.5));
+  db._speedZ=rng(0.002,0.009)*(Math.random()<0.5?1:-1);
+  db._speedY=rng(-0.001,0.001); db._rotX=rng(-0.008,0.008); db._rotY=rng(-0.008,0.008);
+  scene.add(db); floaters.push(db);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// 5) PARTICLE SUPPLY BENCH — BACK WALL RIGHT SIDE
+//    Opposite end from the Master Console. Feeds tier-0 particles
+//    slowly into the crafting island via a glowing overhead conduit.
+// ═══════════════════════════════════════════════════════════════════
+const SBX=5.2, SBZ=-RD/2+0.55;
+
+// Main bench body — flush against back wall
+const sbMat=new THREE.MeshStandardMaterial({color:0x0e2038,roughness:0.42,metalness:0.28});
+place(box(5.0,1.0,1.1,0x0e2038,0.42,0.28),SBX,0.5,SBZ);
+// Bench surface plate
+place(box(4.9,0.06,1.05,0x162c44,0.35,0.32),SBX,1.04,SBZ);
+// Bench base plinth
+place(box(5.0,0.08,1.08,0x0a1828,0.55,0.3),SBX,0.04,SBZ);
+
+// Raised instrument back-panel
+place(box(4.9,2.4,0.12,0x0a1e36,0.48,0.18),SBX,2.24,SBZ-0.48);
+// Accent stripe on panel
+const sbStripe=new THREE.Mesh(new THREE.BoxGeometry(4.9,0.055,0.1),
+  new THREE.MeshStandardMaterial({color:0x2a6090,emissive:0x0a3060,emissiveIntensity:0.7}));
+sbStripe.position.set(SBX,2.85,SBZ-0.43); scene.add(sbStripe);
+
+// Nine particle canisters on bench surface — colour-coded per particle
+const canisterCols=[
+  0x3a9eff,0xff9944,0x44ffaa,0xff44aa,0xffffaa,0xaa88ff,0xff6655,0x55ffee,0xeeaaff
+];
+const canisterParticleIds=['n1','n2','n3','n4','n5','n6','n7','n8','n9'];
+const supplyLights=[];
+const supplyParticleMeshes=[];
+
+for(let i=0;i<9;i++){
+  const cx=SBX-2.0+i*0.5, cy=1.04, cz=SBZ;
+  const col=canisterCols[i];
+  // Cylinder canister body
+  const canBody=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.38,14),
+    new THREE.MeshStandardMaterial({color:0x0c1e34,roughness:0.4,metalness:0.4}));
+  canBody.position.set(cx,cy+0.19,cz); scene.add(canBody);
+  // Glowing top cap
+  const canTop=new THREE.Mesh(new THREE.CylinderGeometry(0.14,0.14,0.04,14),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.9}));
+  canTop.position.set(cx,cy+0.40,cz); scene.add(canTop);
+  // Glowing band at mid-height
+  const canBand=new THREE.Mesh(new THREE.CylinderGeometry(0.145,0.145,0.06,14),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.7,transparent:true,opacity:0.7}));
+  canBand.position.set(cx,cy+0.22,cz); scene.add(canBand);
+  // Tiny glow per canister
+  const cl=new THREE.PointLight(col,0.3,0.8);
+  cl.position.set(cx,cy+0.55,cz); scene.add(cl);
+  supplyLights.push({light:cl,phase:i*0.7,col});
+  // Small particle orb floating above canister
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,10),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.2,roughness:0.2}));
+  orb.position.set(cx,cy+0.62,cz);
+  orb._baseY=cy+0.62; orb._phase=i*0.72;
+  scene.add(orb); supplyParticleMeshes.push(orb);
+}
+
+// Row of readout displays on the back panel
+[-1.6,-0.8,0,0.8,1.6].forEach((ox,i)=>{
+  const disp=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.32,0.04),
+    new THREE.MeshStandardMaterial({color:0x010810,emissive:0x062040,emissiveIntensity:0.8,roughness:0.06}));
+  disp.position.set(SBX+ox,2.22,SBZ-0.42); scene.add(disp);
+});
+
+// Overhead supply conduit — runs from supply bench to crafting island
+// Conduit path: back wall → along ceiling → down left wall to island
+const CONDUIT_Y=RH-0.5;
+// Back section: horizontal along back wall to x=CX
+place(box(Math.abs(SBX-CX)+0.1,0.09,0.09,0x0e2038,0.45,0.38),(SBX+CX)/2,CONDUIT_Y,SBZ);
+// Turn piece at corner
+place(box(0.14,0.14,0.14,0x0c1828,0.45,0.45),CX,CONDUIT_Y,SBZ);
+// Down the room from back wall to island z
+place(box(0.09,0.09,Math.abs(SBZ-CZ)+0.1,0x0e2038,0.45,0.38),CX,CONDUIT_Y,(SBZ+CZ)/2);
+// Vertical drop to island riser height
+place(box(0.09,CONDUIT_Y-TABLE_TOP-2.15-0.5,0.09,0x0e2038,0.45,0.38),CX,TABLE_TOP+2.15+(CONDUIT_Y-TABLE_TOP-2.15)/2,CZ);
+// Glowing energy core inside conduit
+const sbConduitGlow=new THREE.Mesh(new THREE.BoxGeometry(Math.abs(SBX-CX),0.03,0.03),
+  new THREE.MeshStandardMaterial({color:0x44aaff,emissive:0x2266cc,emissiveIntensity:1.2}));
+sbConduitGlow.position.set((SBX+CX)/2,CONDUIT_Y,SBZ); scene.add(sbConduitGlow);
+// Ambient glow along conduit
+const conduitAmbient=new THREE.PointLight(0x2266cc,0.22,4.5);
+conduitAmbient.position.set((SBX+CX)/2,CONDUIT_Y-0.3,SBZ); scene.add(conduitAmbient);
+
+// Supply bench overhead spot
+const sbLight=new THREE.PointLight(0x4488cc,0.55,5.5);
+sbLight.position.set(SBX,2.8,SBZ+0.8); scene.add(sbLight);
+let yaw=0,pitch=0;
+const keys={};
+let pointerLocked=false,gameStarted=false;
+let consoleOpen=false;
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='KeyE' && gameStarted && !consoleOpen && !craftingOpen) checkInteract();
+  if(e.code==='Escape' && consoleOpen)  closeConsole();
+  if(e.code==='Escape' && craftingOpen) closeCraftingStation();
+});
+document.addEventListener('keyup',e=>{ keys[e.code]=false; });
+
+renderer.domElement.addEventListener('click',()=>{
+  if(gameStarted && !consoleOpen && !craftingOpen) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange',()=>{
+  pointerLocked=document.pointerLockElement===renderer.domElement;
+});
+document.addEventListener('mousemove',e=>{
+  if(!pointerLocked) return;
+  yaw  -=e.movementX*0.0018;
+  pitch-=e.movementY*0.0018;
+  pitch=Math.max(-1.0,Math.min(0.75,pitch));
+});
+
+// Interaction zones
+function checkInteract(){
+  const pz=camera.position.z, px=camera.position.x;
+  // Near master console (front wall)
+  if(pz>5.5 && Math.abs(px)<5.5){ openConsole(); return; }
+  // Near crafting island
+  const distToIsland=Math.sqrt((px-CX)**2+(pz-CZ)**2);
+  if(distToIsland < 3.2){ openCraftingStation(); return; }
+}
+
+function openConsole(){
+  consoleOpen=true;
+  document.exitPointerLock();
+  document.getElementById('console-overlay').classList.add('open');
+}
+function closeConsole(){
+  consoleOpen=false;
+  document.getElementById('console-overlay').classList.remove('open');
+}
+
+// Voss replies
+const vossLines=[
+  "The Particle Supply Bench is in the far back-right corner of the lab — it automatically drips tier-0 particles into your inventory over time, routed through the overhead conduit to the Crafting Island. Walk up to the hex table and press E to start synthesising once you have enough!",
+  "Our mission is to terraform a brand-new planet from absolute scratch — starting with elementary particles and working all the way up to a living, breathing ecosystem. You'll literally be remaking a world! No pressure.",
+  "Oh, the Space Imps! Mostly harmless little scoundrels. They travel in ramshackle ships, collect junk from dead planets, and absolutely cannot stand the idea of us building something new. They'll try to interfere eventually — but we'll be ready!",
+];
+function vossLine(i){
+  const el=document.getElementById('voss-reply');
+  el.textContent='"'+vossLines[i]+'"';
+  el.style.display='block';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CRAFTING SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Node data (ingredient strings use exact node names for reliable lookup) ──
+const CRAFT_NODES_RAW=[
+  // Tier 0 — Elementary Particles (no recipe — starting items)
+  {id:'n1', tier:0,name:'Up Quark',        desc:'Charge +2/3. One of the lightest quarks.',                    ing:''},
+  {id:'n2', tier:0,name:'Down Quark',       desc:'Charge −1/3. Pairs with Up Quark in nucleons.',              ing:''},
+  {id:'n3', tier:0,name:'Strange Quark',    desc:'Charge −1/3. Heavier than Down — found in kaons.',           ing:''},
+  {id:'n4', tier:0,name:'Charm Quark',      desc:'Charge +2/3. Second-generation partner of Up.',              ing:''},
+  {id:'n5', tier:0,name:'Gluon',            desc:'Massless boson — carries the strong nuclear force.',         ing:''},
+  {id:'n6', tier:0,name:'Photon',           desc:'Massless boson — carries the electromagnetic force.',        ing:''},
+  {id:'n7', tier:0,name:'Electron',         desc:'Charge −1, mass 0.511 MeV. First-gen lepton.',               ing:''},
+  {id:'n8', tier:0,name:'Electron Neutrino',desc:'Neutral lepton. Barely interacts with matter.',              ing:''},
+  {id:'n9', tier:0,name:'W Boson',          desc:'Carries the weak nuclear force. Enables beta decay.',        ing:''},
+  // Tier 1 — Hadrons & Nuclei
+  {id:'n10',tier:1,name:'Proton',           desc:'2 Up + 1 Down quark bound by gluons. Charge +1.',            ing:'Up Quark ×2, Down Quark ×1, Gluon ×1'},
+  {id:'n11',tier:1,name:'Neutron',          desc:'1 Up + 2 Down quark bound by gluons. Charge 0.',             ing:'Up Quark ×1, Down Quark ×2, Gluon ×1'},
+  {id:'n12',tier:1,name:'Pion (π+)',        desc:'Quark-antiquark pair. Short-lived meson.',                   ing:'Up Quark ×1, Down Quark ×1'},
+  {id:'n13',tier:1,name:'Alpha Particle',   desc:'2 protons + 2 neutrons. Helium-4 nucleus.',                  ing:'Proton ×2, Neutron ×2'},
+  {id:'n14',tier:1,name:'Deuteron',         desc:'Nucleus of Deuterium — 1 proton + 1 neutron.',               ing:'Proton ×1, Neutron ×1'},
+  {id:'n15',tier:1,name:'Carbon Nucleus',   desc:'6 protons + 6 neutrons. Basis of carbon atom.',              ing:'Proton ×6, Neutron ×6'},
+  {id:'n16',tier:1,name:'Oxygen Nucleus',   desc:'8 protons + 8 neutrons. Basis of oxygen atom.',              ing:'Proton ×8, Neutron ×8'},
+  // Tier 2 — Atoms
+  {id:'n17',tier:2,name:'Hydrogen (H)',     desc:'1 proton + 1 electron. Most abundant element in the universe.',ing:'Proton ×1, Electron ×1'},
+  {id:'n18',tier:2,name:'Deuterium (²H)',   desc:'Heavy hydrogen — 1 proton, 1 neutron, 1 electron.',          ing:'Deuteron ×1, Electron ×1'},
+  {id:'n19',tier:2,name:'Helium (He)',      desc:'Noble gas. 2 protons, 2 neutrons, 2 electrons.',              ing:'Alpha Particle ×1, Electron ×2'},
+  {id:'n20',tier:2,name:'Carbon (C)',       desc:'Basis of all organic chemistry. 6 protons, 6 neutrons, 6 electrons.',ing:'Carbon Nucleus ×1, Electron ×6'},
+  {id:'n21',tier:2,name:'Nitrogen (N)',     desc:'7 protons, 7 neutrons. Key component of amino acids.',        ing:'Proton ×7, Neutron ×7, Electron ×7'},
+  {id:'n22',tier:2,name:'Oxygen (O)',       desc:'8 protons, 8 neutrons. Essential for life and water.',        ing:'Oxygen Nucleus ×1, Electron ×8'},
+  {id:'n23',tier:2,name:'Phosphorus (P)',   desc:'15 protons. Critical for DNA backbone and ATP.',              ing:'Proton ×15, Neutron ×16, Electron ×15'},
+  {id:'n24',tier:2,name:'Sulfur (S)',       desc:'16 protons. Found in amino acids cysteine and methionine.',   ing:'Proton ×16, Neutron ×16, Electron ×16'},
+  // Tier 3 — Molecules
+  {id:'n25',tier:3,name:'Water (H₂O)',      desc:'Two hydrogen, one oxygen. Foundation of life.',               ing:'Hydrogen (H) ×2, Oxygen (O) ×1'},
+  {id:'n26',tier:3,name:'Hydrogen Gas (H₂)',desc:'Two hydrogen atoms bonded. Lightest known gas.',             ing:'Hydrogen (H) ×2'},
+  {id:'n27',tier:3,name:'Oxygen Gas (O₂)',  desc:'Diatomic oxygen. Required for aerobic respiration.',          ing:'Oxygen (O) ×2'},
+  {id:'n28',tier:3,name:'Carbon Dioxide',   desc:'CO₂ — produced by respiration, consumed by plants.',         ing:'Carbon (C) ×1, Oxygen (O) ×2'},
+  {id:'n29',tier:3,name:'Methane (CH₄)',    desc:'Simplest hydrocarbon. 1 carbon, 4 hydrogen.',                ing:'Carbon (C) ×1, Hydrogen (H) ×4'},
+  {id:'n30',tier:3,name:'Ammonia (NH₃)',    desc:'3 hydrogen + 1 nitrogen. Precursor to amino acids.',          ing:'Nitrogen (N) ×1, Hydrogen (H) ×3'},
+  {id:'n31',tier:3,name:'Glucose (C₆H₁₂O₆)',desc:'Primary energy sugar. Fuel for all cellular life.',          ing:'Carbon (C) ×6, Hydrogen (H) ×12, Oxygen (O) ×6'},
+  {id:'n32',tier:3,name:'Amino Acid',       desc:'Building block of proteins. ~20 natural varieties.',          ing:'Carbon (C) ×1, Hydrogen (H) ×1, Oxygen (O) ×1, Nitrogen (N) ×1, Sulfur (S) ×1'},
+  {id:'n33',tier:3,name:'Fatty Acid',       desc:'Hydrocarbon chain — key component of cell membranes.',        ing:'Carbon (C) ×4, Hydrogen (H) ×8, Oxygen (O) ×1'},
+  {id:'n34',tier:3,name:'Nucleotide',       desc:'DNA/RNA monomer — sugar + phosphate group + nitrogenous base.',ing:'Glucose (C₆H₁₂O₆) ×1, Phosphorus (P) ×1, Nitrogen (N) ×1'},
+  // Tier 4 — Cells & Biology
+  {id:'n35',tier:4,name:'Protein',          desc:'Chain of amino acids — enzymes, structure, signalling.',      ing:'Amino Acid ×5'},
+  {id:'n36',tier:4,name:'Lipid Bilayer',    desc:'Two fatty acid sheets — forms the cell membrane.',            ing:'Fatty Acid ×2'},
+  {id:'n37',tier:4,name:'DNA Strand',       desc:'Double helix — encodes all genetic instructions.',            ing:'Nucleotide ×4'},
+  {id:'n38',tier:4,name:'RNA',              desc:'Single-strand messenger — ferries DNA instructions to ribosomes.',ing:'Nucleotide ×2'},
+  {id:'n39',tier:4,name:'ATP',              desc:'Adenosine triphosphate — universal cellular energy currency.', ing:'Nucleotide ×1, Phosphorus (P) ×2'},
+  {id:'n40',tier:4,name:'Ribosome',         desc:'Molecular machine that assembles proteins from RNA.',          ing:'RNA ×1, Protein ×1'},
+  {id:'n41',tier:4,name:'Prokaryote Cell',  desc:'First living cell — no nucleus. The ancestor of all life.',   ing:'Lipid Bilayer ×1, DNA Strand ×1, Ribosome ×1, ATP ×2'},
+  {id:'n42',tier:4,name:'Eukaryote Cell',   desc:'Complex cell with nucleus and organelles. Fungi, plants, animals.',ing:'Prokaryote Cell ×1, DNA Strand ×2'},
+  // Tier 5 — Organisms & Ecosystems
+  {id:'n43',tier:5,name:'Single-Cell Organism',desc:'Life! A fully self-replicating cell capable of evolution.',ing:'Prokaryote Cell ×3'},
+  {id:'n44',tier:5,name:'Multicellular Organism',desc:'Specialised cells working together as a single body.',  ing:'Eukaryote Cell ×4'},
+  {id:'n45',tier:5,name:'Plant',            desc:'Photosynthetic organism. Converts CO₂ + light → Glucose.',    ing:'Eukaryote Cell ×2, Water (H₂O) ×2, Carbon Dioxide ×1, Photon ×4'},
+  {id:'n46',tier:5,name:'Animal',           desc:'Heterotrophic organism that consumes other life for energy.',  ing:'Eukaryote Cell ×2, Glucose (C₆H₁₂O₆) ×2, Oxygen Gas (O₂) ×1, Protein ×2'},
+  {id:'n47',tier:5,name:'Ecosystem',        desc:'A self-sustaining web of organisms, chemistry and cycles.',    ing:'Plant ×1, Animal ×1, Water (H₂O) ×3'},
+  {id:'n48',tier:5,name:'NEW WORLD 🌍',     desc:'A living, breathing planet teeming with life. Mission complete!',ing:'Ecosystem ×1'},
+];
+
+const TIER_COLORS_C=['#a0d8ff','#88eebb','#ffdd88','#ff99aa','#cc99ff','#ffbb77'];
+const TIER_NAMES_C =['Elementary Particles','Hadrons / Nuclei','Atoms','Molecules','Cells / Biology','Organisms / Ecosystems'];
+
+// ── Build lookup maps ─────────────────────────────────────────────
+const NODE_MAP={};
+CRAFT_NODES_RAW.forEach(n=>{ NODE_MAP[n.id]=n; });
+
+// name → id (exact match)
+const NAME_ID={};
+CRAFT_NODES_RAW.forEach(n=>{ NAME_ID[n.name]=n.id; });
+
+// Parse "Item Name ×qty, ..." → [{nodeId,qty}]
+function parseIng(str){
+  if(!str||!str.trim()) return [];
+  return str.split(',').map(s=>{
+    s=s.trim();
+    const m=s.match(/^(.+?)\s*[×x]\s*(\d+)$/) || s.match(/^(.+)$/);
+    if(!m) return null;
+    const name=m[1].trim();
+    const qty=m[2]?parseInt(m[2]):1;
+    const id=NAME_ID[name];
+    return id?{nodeId:id,qty}:null;
+  }).filter(Boolean);
+}
+
+// Recipe map: nodeId → [{nodeId,qty}]
+const RECIPE_MAP={};
+CRAFT_NODES_RAW.forEach(n=>{
+  if(n.tier>0){
+    const r=parseIng(n.ing);
+    if(r.length) RECIPE_MAP[n.id]=r;
+  }
+});
+
+// ── Inventory — starts EMPTY; supply bench drip-feeds tier-0 particles ──
+const inventory={};
+CRAFT_NODES_RAW.forEach(n=>{ inventory[n.id]=0; });
+
+// Supply rates (particles per second per node id) — bench provides all 9 tier-0
+const SUPPLY_RATE={
+  n1:0.8,  // Up Quark       — fastest, most needed
+  n2:0.8,  // Down Quark     — same
+  n5:0.6,  // Gluon          — needed for proton/neutron
+  n7:0.7,  // Electron       — needed for atoms
+  n6:0.4,  // Photon         — less critical early
+  n11:0.0, // Neutron handled via n11 id — wait, n11 is tier 1
+  n3:0.25, // Strange Quark  — exotic, slow
+  n4:0.25, // Charm Quark    — exotic, slow
+  n8:0.2,  // Electron Neutrino
+  n9:0.15, // W Boson
+};
+// Cap at 60 each so the bench doesn't overflow
+const SUPPLY_CAP=60;
+let supplyAccum={};
+Object.keys(SUPPLY_RATE).forEach(k=>{ supplyAccum[k]=0; });
+
+let lastSupplyTime=0;
+function tickSupply(now){
+  const dt=Math.min((now-lastSupplyTime)/1000, 0.5);
+  lastSupplyTime=now;
+  let changed=false;
+  Object.entries(SUPPLY_RATE).forEach(([id,rate])=>{
+    if(!rate) return;
+    supplyAccum[id]=(supplyAccum[id]||0)+rate*dt;
+    if(supplyAccum[id]>=1 && (inventory[id]||0)<SUPPLY_CAP){
+      const add=Math.floor(supplyAccum[id]);
+      inventory[id]=Math.min(SUPPLY_CAP,(inventory[id]||0)+add);
+      supplyAccum[id]-=add;
+      changed=true;
+    }
+  });
+  // If crafting UI open, refresh inventory pane only (lightweight)
+  if(changed && craftingOpen) renderInv();
+}
+
+// Set of node IDs ever successfully crafted
+const crafted=new Set();
+
+// ── UI state ──────────────────────────────────────────────────────
+let selRecipeId=null;
+let craftingOpen=false;
+
+// ── Open / close ──────────────────────────────────────────────────
+function openCraftingStation(){
+  craftingOpen=true;
+  document.exitPointerLock();
+  renderCraftUI();
+  document.getElementById('craft-overlay').classList.add('open');
+}
+function closeCraftingStation(){
+  craftingOpen=false;
+  document.getElementById('craft-overlay').classList.remove('open');
+}
+
+// ── Can we craft this node? ───────────────────────────────────────
+function canCraft(id){
+  const r=RECIPE_MAP[id];
+  return r&&r.length&&r.every(ing=>(inventory[ing.nodeId]||0)>=ing.qty);
+}
+
+// ── Overall progress (fraction of non-tier-0 nodes crafted) ──────
+function calcProgress(){
+  const total=CRAFT_NODES_RAW.filter(n=>n.tier>0).length;
+  return crafted.size/total;
+}
+
+// ── Render inventory list ─────────────────────────────────────────
+function renderInv(){
+  const el=document.getElementById('inv-list');
+  const byTier=Array.from({length:6},()=>[]);
+  CRAFT_NODES_RAW.forEach(n=>{
+    if((inventory[n.id]||0)>0) byTier[n.tier].push(n);
+  });
+  let h='';
+  for(let t=0;t<6;t++){
+    if(!byTier[t].length) continue;
+    h+=`<div class="inv-tier-lbl" style="color:${TIER_COLORS_C[t]}">${TIER_NAMES_C[t]}</div>`;
+    byTier[t].forEach(n=>{
+      const tc=TIER_COLORS_C[n.tier];
+      h+=`<div class="inv-item">
+        <span class="inv-dot" style="background:${tc};box-shadow:0 0 5px ${tc}60"></span>
+        <span class="inv-name">${n.name}</span>
+        <span class="inv-qty">×${inventory[n.id]}</span>
+      </div>`;
+    });
+  }
+  if(!h) h='<div class="inv-empty">Inventory empty.<br>Tier 0 particles are pre-loaded<br>in the island pods.</div>';
+  el.innerHTML=h;
+}
+
+// ── Render recipe codex ───────────────────────────────────────────
+function renderCodex(){
+  const el=document.getElementById('codex-list');
+  const byTier=Array.from({length:6},()=>[]);
+  CRAFT_NODES_RAW.forEach(n=>{ if(n.tier>0) byTier[n.tier].push(n); });
+  let h='';
+  for(let t=1;t<6;t++){
+    h+=`<div class="codex-tier-lbl" style="color:${TIER_COLORS_C[t]}">${TIER_NAMES_C[t]}</div>`;
+    byTier[t].forEach(n=>{
+      const ok=canCraft(n.id);
+      const done=crafted.has(n.id);
+      const sel=n.id===selRecipeId;
+      const stCls=done?'codex-st-crafted':ok?'codex-st-ready':'codex-st-locked';
+      const icon=done?'✓':ok?'●':'○';
+      const cls='codex-item'+(sel?' codex-selected':'')+(done?' codex-crafted':'');
+      h+=`<div class="${cls}" onclick="selectRecipe('${n.id}')">
+        <span class="codex-status ${stCls}">${icon}</span>
+        <span class="codex-name">${n.name}</span>
+      </div>`;
+    });
+  }
+  el.innerHTML=h;
+}
+
+// ── Render synthesiser panel ──────────────────────────────────────
+function renderSynth(){
+  const el=document.getElementById('synth-content');
+  if(!selRecipeId){
+    el.innerHTML=`<div class="synth-empty">
+      <div class="synth-empty-icon">⬡</div>
+      <div>Select a recipe from<br>the codex to begin</div>
+    </div>`;
+    return;
+  }
+  const node=NODE_MAP[selRecipeId];
+  const recipe=RECIPE_MAP[selRecipeId]||[];
+  const tc=TIER_COLORS_C[node.tier];
+  const done=crafted.has(selRecipeId);
+  const ok=canCraft(selRecipeId);
+
+  let ingHtml='';
+  let allOk=true;
+  recipe.forEach(ing=>{
+    const in_=NODE_MAP[ing.nodeId];
+    const have=inventory[ing.nodeId]||0;
+    const enough=have>=ing.qty;
+    if(!enough) allOk=false;
+    const itc=TIER_COLORS_C[in_.tier];
+    ingHtml+=`<div class="ing-slot ${enough?'ing-ok':'ing-missing'}">
+      <span class="ing-dot" style="background:${itc};box-shadow:0 0 4px ${itc}88"></span>
+      <span class="ing-name">${in_.name}</span>
+      <span class="ing-need">need ×${ing.qty}</span>
+      <span class="ing-have" style="color:${enough?'#88ffaa':'#ff7766'}">have ${have}</span>
+    </div>`;
+  });
+  if(!recipe.length) ingHtml='<div class="ing-none">Tier 0 particle — no synthesis needed.</div>';
+
+  const btnCls=ok&&recipe.length?'synth-btn-ready':'synth-btn-off';
+  el.innerHTML=`
+    <div>
+      <div class="synth-recipe-name" style="color:${tc}">${node.name}</div>
+      <div class="synth-recipe-tier" style="color:${tc}">${TIER_NAMES_C[node.tier]}</div>
+      <div class="synth-recipe-desc">${node.desc}</div>
+    </div>
+    <div class="synth-divider"></div>
+    <div class="synth-ing-title">REQUIRED INGREDIENTS</div>
+    <div id="ing-slots">${ingHtml}</div>
+    <div class="synth-craft-area">
+      ${done?'<div class="synth-prev-badge">✓ PREVIOUSLY SYNTHESISED</div>':''}
+      <button class="synth-btn ${btnCls}" onclick="doCraft()" ${ok&&recipe.length?'':'disabled'}>
+        SYNTHESISE
+      </button>
+    </div>`;
+}
+
+// ── Select recipe ─────────────────────────────────────────────────
+function selectRecipe(id){
+  selRecipeId=id;
+  renderCraftUI();
+  setTimeout(()=>{
+    const s=document.querySelector('.codex-selected');
+    if(s) s.scrollIntoView({block:'nearest',behavior:'smooth'});
+  },40);
+}
+
+// ── Execute craft ─────────────────────────────────────────────────
+function doCraft(){
+  if(!selRecipeId||!canCraft(selRecipeId)) return;
+  const recipe=RECIPE_MAP[selRecipeId];
+  recipe.forEach(ing=>{ inventory[ing.nodeId]-=ing.qty; });
+  inventory[selRecipeId]=(inventory[selRecipeId]||0)+1;
+  crafted.add(selRecipeId);
+
+  // Flash synthesiser panel
+  const sc=document.getElementById('synth-content');
+  sc.classList.remove('synth-flash');
+  void sc.offsetWidth; // reflow
+  sc.classList.add('synth-flash');
+
+  // Update story panel with what was just made
+  const n=NODE_MAP[selRecipeId];
+  document.getElementById('dialogue-text').textContent=
+    `Synthesised: ${n.name}! ${n.desc}`;
+
+  // Update progress bar
+  const pct=(calcProgress()*100).toFixed(1);
+  document.getElementById('craft-progress-fill').style.width=pct+'%';
+
+  renderCraftUI();
+}
+
+// ── Full UI refresh ───────────────────────────────────────────────
+function renderCraftUI(){
+  renderInv();
+  renderCodex();
+  renderSynth();
+  // Update console overlay's "What You've Built" counts while we're at it
+  updateConsoleCounts();
+}
+
+function updateConsoleCounts(){
+  const counts=[0,0,0,0,0,0];
+  CRAFT_NODES_RAW.forEach(n=>{ if(inventory[n.id]>0) counts[n.tier]+=inventory[n.id]; });
+  const rows=document.querySelectorAll('#console-overlay .co-panel:nth-child(2) .recipe-row');
+  if(rows.length>=4){
+    rows[0].innerHTML=`<div class="recipe-dot dot-ready"></div>Particles in inventory: ${counts[0]}`;
+    rows[1].innerHTML=`<div class="recipe-dot ${counts[1]?'dot-ready':'dot-locked'}"></div>Hadrons assembled: ${counts[1]}`;
+    rows[2].innerHTML=`<div class="recipe-dot ${counts[2]?'dot-ready':'dot-locked'}"></div>Atoms assembled: ${counts[2]}`;
+    rows[3].innerHTML=`<div class="recipe-dot ${counts[3]?'dot-ready':'dot-locked'}"></div>Molecules synthesised: ${counts[3]}`;
+  }
+}
+
+// Proximity prompt
+const promptEl=document.getElementById('prompt');
+function updatePrompt(){
+  const pz=camera.position.z, px=camera.position.x;
+  const distToIsland=Math.sqrt((px-CX)**2+(pz-CZ)**2);
+  if(pz>5.0 && Math.abs(px)<5.5){
+    promptEl.textContent='[ E ] Open Master Console';
+    promptEl.classList.add('show');
+  } else if(distToIsland < 3.2){
+    promptEl.textContent='[ E ] Open Crafting Station';
+    promptEl.classList.add('show');
+  } else {
+    promptEl.classList.remove('show');
+  }
+}
+
+// ── Animate ────────────────────────────────────────────────────────
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+
+  if(gameStarted && !consoleOpen && !craftingOpen){
+    const speed=0.07;
+    const dir=new THREE.Vector3();
+    if(keys['KeyW']) dir.z-=1;
+    if(keys['KeyS']) dir.z+=1;
+    if(keys['KeyA']) dir.x-=1;
+    if(keys['KeyD']) dir.x+=1;
+    dir.normalize().multiplyScalar(speed).applyEuler(new THREE.Euler(0,yaw,0));
+    camera.position.add(dir);
+    camera.position.x=Math.max(-RW/2+0.7,Math.min(RW/2-0.7,camera.position.x));
+    camera.position.z=Math.max(-RD/2+0.7,Math.min(RD/2-0.7,camera.position.z));
+    camera.position.y=1.7;
+    camera.rotation.order='YXZ';
+    camera.rotation.y=yaw;
+    camera.rotation.x=pitch;
+    updatePrompt();
+  }
+
+  // Central atom
+  atomGroup.rotation.y=t*0.32;
+  atomGroup.position.y=1.5+Math.sin(t*0.85)*0.065;
+  nucleus.scale.setScalar(1+Math.sin(t*2.4)*0.055);
+  electrons.forEach(e=>{
+    e.angle+=e.speed*0.022;
+    e.mesh.position.set(
+      Math.cos(e.angle)*e.r,
+      Math.sin(e.angle)*e.r*Math.sin(e.orbit.rotation.x+0.5),
+      Math.sin(e.angle)*e.r
+    );
+  });
+
+  // Crafting island — central atom + pods
+  craftAtomGroup.rotation.y=t*0.55;
+  craftAtomGroup.position.set(CX, 2.1+Math.sin(t*1.1)*0.04, CZ);
+  craftNucleus.scale.setScalar(1+Math.sin(t*2.8)*0.07);
+  craftElectrons.forEach(e=>{
+    e.angle+=e.speed*0.022;
+    e.mesh.position.set(
+      Math.cos(e.angle)*e.r,
+      Math.sin(e.angle)*e.r*Math.sin(e.orbit.rotation.x+0.5),
+      Math.sin(e.angle)*e.r
+    );
+  });
+  craftRing.material.emissiveIntensity=0.9+Math.sin(t*2.2)*0.4;
+  craftLight.intensity=0.75+Math.sin(t*1.8)*0.2;
+
+  // Pod spheres — bob at TABLE_TOP + 0.50 baseline
+  podSpheres.forEach((s,i)=>{
+    s.position.y = TABLE_TOP+0.50 + Math.sin(t*1.4 + i*1.05)*0.055;
+    s.rotation.y = t*0.6*(i%2===0?1:-1);
+  });
+  pods.forEach((p,i)=>{
+    p.rim.material.emissiveIntensity = 0.75 + Math.sin(t*1.8 + i*1.05)*0.45;
+    p.podLight.intensity = 0.35 + Math.sin(t*1.6 + i*0.9)*0.18;
+  });
+  // Scan beam pulse
+  beam.material.opacity = 0.2 + Math.sin(t*2.5)*0.18;
+  screenGlow.intensity = 0.3 + Math.sin(t*3.1)*0.12;
+  // Conduit glow pulse
+  sbConduitGlow.material.emissiveIntensity = 0.9 + Math.sin(t*2.8)*0.4;
+  conduitAmbient.intensity = 0.18 + Math.sin(t*1.9)*0.08;
+  conduitGlow.material.emissiveIntensity = 0.9 + Math.sin(t*2.4)*0.35;
+
+  // Supply bench — canister orbs bob, lights pulse
+  supplyParticleMeshes.forEach((o,i)=>{
+    o.position.y = o._baseY + Math.sin(t*1.6+o._phase)*0.045;
+    o.rotation.y = t*0.8*(i%2===0?1:-1);
+  });
+  supplyLights.forEach((sl,i)=>{
+    sl.light.intensity = 0.25 + Math.sin(t*2.2+sl.phase)*0.14;
+  });
+  sbLight.intensity = 0.45 + Math.sin(t*0.9)*0.12;
+
+  // Airlock seam pulse + orange bar
+  seam.material.emissiveIntensity=0.7+Math.sin(t*2.0)*0.4;
+  alBar.material.emissiveIntensity=0.4+Math.sin(t*1.5)*0.35;
+  alLight.intensity=0.3+Math.sin(t*2.0)*0.15;
+
+  // Space window — twinkling stars
+  twinkleStars.forEach(s=>{
+    s.material.emissiveIntensity = s._baseEI*(0.7+0.3*Math.sin(t*s._freq+s._phase));
+  });
+  // Planet rotation + ring slow drift
+  planetGroup.rotation.y = t*0.018;
+  planetGlow.intensity = 0.22+Math.sin(t*1.1)*0.08;
+  // Sun corona pulse
+  sunLight.intensity = 0.45+Math.sin(t*0.7)*0.12;
+
+  // Drifting floaters — asteroids and debris
+  floaters.forEach((f,i)=>{
+    f.position.z += f._speedZ;
+    f.position.y += f._speedY;
+    f.rotation.x += f._rotX;
+    f.rotation.y += f._rotY;
+    // Wrap within window Z range
+    const zMin=WIN_CZ-WIN_W/2+0.1, zMax=WIN_CZ+WIN_W/2-0.1;
+    if(f.position.z>zMax) f.position.z=zMin;
+    if(f.position.z<zMin) f.position.z=zMax;
+    f.position.y=Math.max(WIN_CY-WIN_H/2+0.1,Math.min(WIN_CY+WIN_H/2-0.1,f.position.y));
+  });
+
+  // Ring pulse
+  ringMesh.material.emissiveIntensity=0.85+Math.sin(t*1.6)*0.28;
+  screenMat.emissiveIntensity=0.82+Math.sin(t*3.4)*0.06;
+
+  strips.forEach((l,i)=>{ l.intensity=0.55+Math.sin(t*0.55+i)*0.15; });
+
+  // Particle supply trickle
+  tickSupply(performance.now());
+
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CUTSCENE ENGINE
+// ═══════════════════════════════════════════════════════════════════
+const sceneCanvas=document.getElementById('scene-canvas');
+const ctx=sceneCanvas.getContext('2d');
+let sceneIndex=0,sceneAnimFrame=null,sceneAutoTimer=null;
+function resizeSC(){ sceneCanvas.width=innerWidth; sceneCanvas.height=innerHeight; }
+resizeSC(); window.addEventListener('resize',resizeSC);
+
+const scenes=[
+  {location:"EARTH — YEAR 2157 — MIDTOWN UNIVERSITY, 11:48 PM",speaker:"",duration:7500,
+   text:"You are a young scientist burning the midnight oil in your cramped university lab. Your research on particle theory has been turning heads across the galaxy...",draw:drawScene1},
+  {location:"UNIVERSITY LAB — INCOMING TRANSMISSION",speaker:"COMPUTER",duration:6000,
+   text:"\"INCOMING PRIORITY MESSAGE — SENDER: GALACTIC SCIENCE ADMINISTRATION — CLASSIFICATION: URGENT\"",draw:drawScene2},
+  {location:"GSA TRANSMISSION — DIRECTOR VOSS",speaker:"Director Voss",duration:8000,
+   text:"\"Hello, Scientist! I'm Director Voss of the GSA. Your particle research has caught our attention. We have a mission that could make history — and we want YOU for it. Report to Launch Bay 7 at dawn!\"",draw:drawScene3},
+  {location:"EARTH ORBIT — DAWN DEPARTURE",speaker:"",duration:7500,
+   text:"With your bags barely packed and your mind racing with possibilities, you board the GSA shuttle as the sun rises. Earth shrinks in the viewport. You're really doing this.",draw:drawScene4},
+  {location:"DEEP SPACE — 3 DAYS LATER",speaker:"",duration:7500,
+   text:"After three days of travel the pilot's voice crackles overhead: \"Take a look out the starboard window. That big, beautiful ship? That's the Aurora. Welcome home.\"",draw:drawScene5},
+  {location:"GSA RESEARCH VESSEL AURORA — DOCKING BAY",speaker:"Director Voss",duration:7000,
+   text:"\"Welcome aboard! The lab is ready, the equipment is calibrated, and the universe is waiting. Everything you need to Remake the World is right here. Shall we begin?\"",draw:drawScene6},
+];
+
+const progressEl=document.getElementById('scene-progress');
+scenes.forEach((_,i)=>{
+  const d=document.createElement('div');
+  d.className='scene-dot'; d.id='sdot-'+i; progressEl.appendChild(d);
+});
+
+function stars(t,n){
+  n=n||150;
+  for(let i=0;i<n;i++){
+    const s=i*137.5;
+    const x=(Math.sin(s)*.5+.5)*sceneCanvas.width;
+    const y=(Math.cos(s*1.3)*.5+.5)*sceneCanvas.height;
+    const r=(Math.sin(s*3)*.5+.5)*1.4+.3;
+    const tw=.5+.5*Math.sin(t*2+s);
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${tw*.85})`; ctx.fill();
+  }
+}
+function scanlines(){
+  for(let y=0;y<sceneCanvas.height;y+=3){
+    ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(0,y,sceneCanvas.width,1);
+  }
+}
+
+function drawScene1(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#03090f'); bg.addColorStop(1,'#08151f');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#050d18'; ctx.fillRect(W*.63,H*.08,W*.24,H*.34);
+  for(let i=0;i<36;i++){
+    const s=i*47.1;
+    const bx=W*.64+(Math.sin(s)*.5+.5)*W*.22, by=H*.12+(Math.cos(s*1.6)*.5+.5)*H*.27;
+    ctx.fillStyle=`rgba(255,215,110,${(.4+.6*Math.sin(t*1.3+s))*.7})`;
+    ctx.fillRect(bx,by,W*.005,H*.007);
+  }
+  ctx.strokeStyle='#182838'; ctx.lineWidth=6; ctx.strokeRect(W*.63,H*.08,W*.24,H*.34);
+  ctx.fillStyle='#0e1d2c'; ctx.fillRect(W*.08,H*.56,W*.84,H*.38);
+  ctx.fillStyle='#152534'; ctx.fillRect(W*.08,H*.54,W*.84,H*.03);
+  const mg=ctx.createRadialGradient(W*.45,H*.37,0,W*.45,H*.37,W*.22);
+  mg.addColorStop(0,'rgba(40,100,220,.28)'); mg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=mg; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0b1a2a'; ctx.fillRect(W*.3,H*.2,W*.3,H*.32);
+  const sc=ctx.createLinearGradient(W*.32,H*.22,W*.32,H*.48);
+  sc.addColorStop(0,'#001326'); sc.addColorStop(1,'#00274c');
+  ctx.fillStyle=sc; ctx.fillRect(W*.32,H*.22,W*.26,H*.27);
+  const lines=['> particle_sim.run()','  mass: 0.000511 MeV','  charge: -1','  spin: 1/2','> quark_bind(u,u,d)','  energy: stable','> PROTON FORMED ✓'];
+  ctx.font=`${W*.009}px monospace`; ctx.textAlign='left';
+  lines.forEach((l,i)=>{
+    const a=i===lines.length-1?(0.7+0.3*Math.sin(t*3)):0.52;
+    ctx.fillStyle=i===lines.length-1?`rgba(100,195,255,${a})`:`rgba(75,150,220,0.5)`;
+    ctx.fillText(l,W*.334,H*.254+i*H*.029);
+  });
+  ctx.fillStyle='#09162a'; ctx.fillRect(W*.44,H*.52,W*.02,H*.04); ctx.fillRect(W*.41,H*.555,W*.08,H*.012);
+  [.12,.18,.23,.28].forEach((px,i)=>{ ctx.fillStyle=['#0f1e2e','#0c1826','#091420','#112030'][i]; ctx.fillRect(W*px,H*.57,W*.044,H*.065); });
+  ctx.fillStyle='#0d1e30'; ctx.fillRect(W*.75,H*.565,W*.03,H*.03);
+  ctx.beginPath(); ctx.ellipse(W*.765,H*.566,W*.018,H*.008,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=`rgba(175,205,235,${.3+.3*Math.sin(t*2.2)})`; ctx.fillRect(W*.763,H*.535,W*.004,H*.022);
+}
+
+function drawScene2(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  drawScene1(t*.18+4);
+  ctx.fillStyle=`rgba(190,25,0,${.09+.06*Math.sin(t*4)})`; ctx.fillRect(0,0,W,H);
+  const pw=W*.47,ph=H*.45,px=(W-pw)/2,py=(H-ph)/2-H*.04;
+  ctx.fillStyle='rgba(2,8,20,.96)'; ctx.fillRect(px,py,pw,ph);
+  ctx.strokeStyle=`rgba(80,165,255,${.6+.4*Math.sin(t*3)})`; ctx.lineWidth=2; ctx.strokeRect(px,py,pw,ph);
+  const cx=W/2,cy=py+ph*.28;
+  ctx.beginPath(); ctx.arc(cx,cy,pw*.105,0,Math.PI*2); ctx.strokeStyle='#55aaff'; ctx.lineWidth=2; ctx.stroke();
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*.9);
+  for(let i=0;i<8;i++){
+    const a=i/8*Math.PI*2;
+    ctx.beginPath(); ctx.arc(Math.cos(a)*pw*.082,Math.sin(a)*pw*.082,pw*.009,0,Math.PI*2);
+    ctx.fillStyle='#55aaff'; ctx.fill();
+  }
+  ctx.restore();
+  ctx.font=`bold ${W*.013}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='#7ac4ff'; ctx.fillText('GSA',cx,cy+4);
+  ctx.font=`${W*.009}px monospace`; ctx.fillStyle='rgba(110,185,255,.8)';
+  ctx.fillText('GALACTIC SCIENCE ADMINISTRATION',cx,py+ph*.48);
+  ctx.fillStyle=Math.sin(t*3)>0?'#ff6633':'#ffaa55';
+  ctx.font=`${W*.008}px 'Orbitron',sans-serif`;
+  ctx.fillText('⚠  PRIORITY TRANSMISSION  ⚠',cx,py+ph*.63);
+  ctx.fillStyle='rgba(150,195,255,.4)'; ctx.font=`${W*.0072}px monospace`;
+  ctx.fillText('ENCRYPTION: LEVEL 9  —  ORIGIN: AURORA VESSEL',cx,py+ph*.79);
+  ctx.textAlign='left';
+}
+
+function drawScene3(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#020609'; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<6;i++){
+    const ly=(H*.1+i*H*.12+t*25)%H;
+    ctx.fillStyle='rgba(25,75,155,.05)'; ctx.fillRect(0,ly,W,H*.05);
+  }
+  const fl=.82+.18*Math.sin(t*13.8)*Math.sin(t*5.4);
+  const cx=W/2,cy=H*.38;
+  const gw=ctx.createRadialGradient(cx,cy,0,cx,cy,W*.21);
+  gw.addColorStop(0,'rgba(35,115,245,.25)'); gw.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gw; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=fl;
+  ctx.fillStyle='#081e3c';
+  ctx.beginPath(); ctx.ellipse(cx,cy,W*.075,H*.148,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx,cy+H*.17,W*.16,H*.072,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(75,165,255,.72)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.ellipse(cx-W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx+W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy+H*.04,W*.021,.25,Math.PI-.25); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-W*.042,cy+H*.098); ctx.lineTo(cx,cy+H*.082); ctx.lineTo(cx+W*.042,cy+H*.098);
+  ctx.strokeStyle='rgba(55,140,245,.48)'; ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.font=`${W*.0078}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='rgba(95,175,255,.72)'; ctx.fillText('DIR. VOSS — GSA COMMAND',cx,H*.7);
+  scanlines(); ctx.textAlign='left';
+}
+
+function drawScene4(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#010408'; ctx.fillRect(0,0,W,H); stars(t,200);
+  const eg=ctx.createRadialGradient(W*.3,H*1.12,H*.28,W*.3,H*1.12,H*.72);
+  eg.addColorStop(0,'#1c4e96'); eg.addColorStop(.38,'#1e6432'); eg.addColorStop(.7,'#1c4e96'); eg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(W*.3,H*1.12,H*.68,0,Math.PI*2); ctx.fill();
+  const ag=ctx.createRadialGradient(W*.3,H*1.1,H*.62,W*.3,H*1.1,H*.78);
+  ag.addColorStop(0,'rgba(80,160,255,0)'); ag.addColorStop(.7,'rgba(80,160,255,.14)'); ag.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ag; ctx.beginPath(); ctx.arc(W*.3,H*1.1,H*.78,0,Math.PI*2); ctx.fill();
+  const sx=W*.44+Math.sin(t*.4)*W*.012,sy=H*.32-(t%25)*H*.004;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(-.38);
+  ctx.fillStyle='#8ab8d0'; ctx.fillRect(-W*.013,-H*.024,W*.026,H*.048);
+  ctx.fillStyle='#aad0e0'; ctx.beginPath(); ctx.moveTo(-W*.013,-H*.024); ctx.lineTo(W*.013,-H*.024); ctx.lineTo(0,-H*.048); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#6898b0';
+  ctx.beginPath(); ctx.moveTo(-W*.013,H*.01); ctx.lineTo(-W*.038,H*.028); ctx.lineTo(-W*.013,H*.024); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W*.013,H*.01); ctx.lineTo(W*.038,H*.028); ctx.lineTo(W*.013,H*.024); ctx.closePath(); ctx.fill();
+  const ea=.45+.45*Math.sin(t*9);
+  const exg=ctx.createLinearGradient(0,H*.024,0,H*.085);
+  exg.addColorStop(0,`rgba(255,185,55,${ea})`); exg.addColorStop(.5,`rgba(255,85,18,${ea*.6})`); exg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=exg; ctx.beginPath(); ctx.ellipse(0,H*.053,W*.009,H*.036,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawScene5(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#010206'; ctx.fillRect(0,0,W,H); stars(t*.5,260);
+  const nb=ctx.createRadialGradient(W*.72,H*.28,0,W*.72,H*.28,W*.42);
+  nb.addColorStop(0,'rgba(18,48,118,.35)'); nb.addColorStop(.6,'rgba(8,18,58,.18)'); nb.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=nb; ctx.fillRect(0,0,W,H);
+  const SX=W*.5,SY=H*.42;
+  for(let i=0;i<3;i++){
+    const ex=SX-W*.21+i*W*.028;
+    const eng=ctx.createRadialGradient(ex,SY+H*.044,0,ex,SY+H*.044,W*.062);
+    eng.addColorStop(0,`rgba(75,178,255,${.45+.1*Math.sin(t*2+i)})`); eng.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=eng; ctx.fillRect(0,0,W,H);
+  }
+  ctx.fillStyle='#28485e'; ctx.beginPath(); ctx.ellipse(SX,SY,W*.27,H*.056,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#38586e'; ctx.beginPath(); ctx.ellipse(SX+W*.055,SY-H*.047,W*.1,H*.04,-.1,0,Math.PI*2); ctx.fill();
+  const hh=ctx.createLinearGradient(SX-W*.27,SY-H*.058,SX-W*.27,SY+H*.058);
+  hh.addColorStop(0,'rgba(190,225,255,.18)'); hh.addColorStop(.5,'rgba(190,225,255,.04)'); hh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=hh; ctx.beginPath(); ctx.ellipse(SX,SY,W*.27,H*.056,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#183050'; ctx.fillRect(SX-W*.27,SY-H*.009,W*.1,H*.012);
+  for(let i=0;i<4;i++){
+    ctx.fillStyle=`rgba(58,115,215,${.5+.3*Math.sin(t+i)})`;
+    ctx.fillRect(SX-W*.265+i*W*.023,SY-H*.008,W*.018,H*.01);
+  }
+  for(let i=0;i<3;i++){
+    ctx.fillStyle='#1a3350'; ctx.beginPath(); ctx.ellipse(SX-W*.21+i*W*.028,SY+H*.037,W*.011,H*.017,.08,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=`rgba(78,188,255,${.75+.25*Math.sin(t*2.2+i)})`; ctx.beginPath(); ctx.arc(SX-W*.21+i*W*.028,SY+H*.047,W*.005,0,Math.PI*2); ctx.fill();
+  }
+  for(let i=0;i<13;i++){
+    const wx=SX-W*.19+i*W*.03;
+    ctx.fillStyle=`rgba(215,238,255,${.5+.5*Math.sin(t*.7+i*.8)})`; ctx.beginPath(); ctx.arc(wx,SY,W*.003,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#284860'; ctx.beginPath(); ctx.arc(SX+W*.19,SY-H*.054,W*.022,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#486880'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(SX+W*.19,SY-H*.054); ctx.lineTo(SX+W*.19,SY-H*.09); ctx.stroke();
+  ctx.font=`${W*.0082}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='rgba(115,195,255,.82)'; ctx.fillText('G.S.A.  AURORA',SX,SY+H*.1);
+  ctx.textAlign='left';
+}
+
+function drawScene6(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#0c2240'); bg.addColorStop(1,'#061828');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(65,145,225,.18)'; ctx.lineWidth=.8;
+  for(let x=0;x<W;x+=W*.05){ ctx.beginPath(); ctx.moveTo(x,H*.62); ctx.lineTo(W*.5+(x-W*.5)*.25,H); ctx.stroke(); }
+  for(let i=0;i<9;i++){ const y=H*.62+i*H*.045; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  const fl=ctx.createLinearGradient(0,H*.62,0,H);
+  fl.addColorStop(0,'rgba(70,155,230,.06)'); fl.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=fl; ctx.fillRect(0,H*.62,W,H*.38);
+  ctx.fillStyle='#0c2640'; ctx.fillRect(0,0,W*.1,H*.64); ctx.fillRect(W*.9,0,W*.1,H*.64);
+  for(let i=0;i<4;i++){
+    const py=H*(.12+i*.14),pa=.5+.5*Math.sin(t*1.2+i*1.5);
+    ctx.fillStyle=`rgba(75,165,230,${pa*.65})`;
+    ctx.fillRect(W*.038,py,W*.026,H*.006); ctx.fillRect(W*.936,py,W*.026,H*.006);
+  }
+  const cs=ctx.createLinearGradient(0,0,W,0);
+  cs.addColorStop(0,'rgba(75,155,230,0)'); cs.addColorStop(.5,'rgba(75,155,230,.18)'); cs.addColorStop(1,'rgba(75,155,230,0)');
+  ctx.fillStyle=cs; ctx.fillRect(0,0,W,H*.038);
+  const dw=W*.32,dh=H*.6,dx=(W-dw)/2,dy=H*.06;
+  ctx.fillStyle='#0a2038'; ctx.fillRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  ctx.strokeStyle='rgba(58,135,215,.5)'; ctx.lineWidth=2; ctx.strokeRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  const open=Math.min(1,t/3.2),slide=dw*.5*open;
+  ctx.fillStyle='#0f2840';
+  ctx.fillRect(dx,dy,dw*.5-slide,dh); ctx.fillRect(dx+dw*.5+slide,dy,dw*.5-slide,dh);
+  if(open>0){
+    ctx.save(); ctx.beginPath(); ctx.rect(dx+dw*.5-slide,dy,slide*2,dh); ctx.clip();
+    const ig=ctx.createRadialGradient(W/2,H*.38,0,W/2,H*.38,W*.28);
+    ig.addColorStop(0,`rgba(140,200,255,${open*.55})`); ig.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ig; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=`rgba(190,225,255,${open*.07})`; ctx.fillRect(dx+dw*.5-slide,dy,slide*2,dh);
+    if(open>.45){
+      const sa=Math.min(1,(open-.45)/.4);
+      ctx.fillStyle=`rgba(22,65,120,${sa*.88})`;
+      ctx.beginPath(); ctx.ellipse(W/2,H*.52,W*.048,H*.132,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(W/2,H*.345,W*.03,0,Math.PI*2); ctx.fill();
+      ctx.save(); ctx.translate(W/2+W*.048,H*.44); ctx.rotate(Math.sin(t*2)*.28-.35);
+      ctx.fillStyle=`rgba(22,65,120,${sa*.88})`; ctx.fillRect(-W*.004,0,W*.009,H*.098); ctx.restore();
+    }
+    ctx.restore();
+  }
+  const gs=.6+.3*Math.sin(t*2.2);
+  ctx.strokeStyle=`rgba(80,170,255,${gs*open})`; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2,dy); ctx.lineTo(W/2,dy+dh); ctx.stroke();
+}
+
+function updateDots(){
+  scenes.forEach((_,i)=>{
+    const d=document.getElementById('sdot-'+i);
+    d.className='scene-dot'+(i<sceneIndex?' done':i===sceneIndex?' active':'');
+  });
+}
+function showScene(index){
+  if(index>=scenes.length){ skipCutscene(); return; }
+  sceneIndex=index;
+  const s=scenes[index];
+  const wipe=document.getElementById('scene-wipe');
+  wipe.classList.add('wipe-in');
+  setTimeout(()=>{
+    const loc=document.getElementById('scene-location');
+    loc.style.opacity='0'; loc.textContent=s.location;
+    const nb=document.getElementById('narration-box');
+    nb.classList.remove('visible');
+    document.getElementById('narration-speaker').textContent=s.speaker;
+    document.getElementById('narration-text').textContent=s.text;
+    if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+    const t0=performance.now();
+    function loop(ts){
+      const t=(ts-t0)/1000;
+      ctx.clearRect(0,0,sceneCanvas.width,sceneCanvas.height);
+      s.draw(t); sceneAnimFrame=requestAnimationFrame(loop);
+    }
+    sceneAnimFrame=requestAnimationFrame(loop);
+    wipe.classList.remove('wipe-in'); wipe.classList.add('wipe-out');
+    setTimeout(()=>wipe.classList.remove('wipe-out'),540);
+    setTimeout(()=>{ loc.style.opacity='1'; nb.classList.add('visible'); },400);
+    updateDots();
+    if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+    sceneAutoTimer=setTimeout(()=>nextScene(),s.duration);
+  },460);
+}
+function nextScene(){ if(sceneAutoTimer) clearTimeout(sceneAutoTimer); showScene(sceneIndex+1); }
+function skipCutscene(){
+  if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+  if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+  const c=document.getElementById('cutscene');
+  c.style.transition='opacity 1s ease'; c.style.opacity='0';
+  document.getElementById('intro-overlay').style.display='flex';
+  setTimeout(()=>{ c.style.display='none'; },1000);
+}
+window.addEventListener('load',()=>showScene(0));
+
+function startGame(){
+  const o=document.getElementById('intro-overlay');
+  o.style.transition='opacity 1s ease'; o.style.opacity='0';
+  setTimeout(()=>{ o.style.display='none'; },1000);
+  gameStarted=true;
+}
+</script>
+</body>
+</html>

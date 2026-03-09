@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <title>Remake the World — GSA Aurora</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400&display=swap');
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#000; overflow:hidden; font-family:'Inter',sans-serif; color:#fff; }
+    #canvas-container { width:100vw; height:100vh; }
+    canvas { display:block; }
+
+    /* ── HUD ─────────────────────────────────────────────────────── */
+    #hud { position:fixed; inset:0; pointer-events:none; z-index:10; }
+
+    #top-bar {
+      position:absolute; top:0; left:0; right:0; padding:14px 28px;
+      display:flex; align-items:center; justify-content:space-between;
+      background:linear-gradient(to bottom,rgba(4,14,30,0.92),transparent);
+    }
+    #game-title {
+      font-family:'Orbitron',sans-serif; font-size:1rem; font-weight:700;
+      letter-spacing:.18em; color:#a8d4f5;
+      text-shadow:0 0 22px rgba(80,160,240,.5);
+    }
+    #gsa-badge { font-size:.68rem; font-weight:300; letter-spacing:.22em; color:rgba(140,195,240,.55); }
+
+    /* interaction prompt */
+    #prompt {
+      position:absolute; top:54%; left:50%; transform:translate(-50%,0);
+      background:rgba(4,14,30,.85); border:1px solid rgba(80,160,240,.4);
+      border-radius:6px; padding:8px 20px; font-size:.7rem; letter-spacing:.15em;
+      color:#a0d0ff; opacity:0; transition:opacity .4s; pointer-events:none;
+      backdrop-filter:blur(6px);
+    }
+    #prompt.show { opacity:1; }
+
+    /* ── CONSOLE OVERLAY ─────────────────────────────────────────── */
+    #console-overlay {
+      position:fixed; inset:0; background:rgba(2,8,20,.94);
+      z-index:50; display:none; flex-direction:column;
+      align-items:center; justify-content:flex-start;
+      padding:40px 24px 24px; gap:16px;
+      backdrop-filter:blur(12px);
+      pointer-events:all;
+    }
+    #console-overlay.open { display:flex; }
+    .co-title {
+      font-family:'Orbitron',sans-serif; font-size:.9rem; font-weight:700;
+      letter-spacing:.2em; color:#a8d4f5;
+      text-shadow:0 0 18px rgba(80,160,240,.5);
+    }
+    .co-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; max-width:900px; }
+    .co-panel {
+      background:rgba(8,24,50,.9); border:1px solid rgba(80,160,240,.25);
+      border-radius:8px; padding:16px;
+    }
+    .co-panel h3 {
+      font-family:'Orbitron',sans-serif; font-size:.6rem; letter-spacing:.18em;
+      color:#5aaeff; margin-bottom:12px; text-transform:uppercase;
+    }
+    .recipe-row {
+      display:flex; align-items:center; gap:10px; padding:7px 0;
+      border-bottom:1px solid rgba(80,160,240,.1); font-size:.78rem;
+      font-weight:300; color:#cce4ff;
+    }
+    .recipe-row:last-child { border-bottom:none; }
+    .recipe-dot {
+      width:8px; height:8px; border-radius:50%; flex-shrink:0;
+    }
+    .dot-locked { background:#1a2a3a; }
+    .dot-ready  { background:#5aaeff; box-shadow:0 0 6px #5aaeff; }
+    .voss-box { display:flex; flex-direction:column; gap:10px; }
+    .voss-portrait {
+      width:70px; height:70px; border-radius:50%;
+      background:radial-gradient(circle at 40% 40%, #1a4878, #081828);
+      border:2px solid rgba(80,160,240,.4);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.6rem; flex-shrink:0;
+    }
+    .voss-line {
+      background:rgba(5,18,40,.8); border:1px solid rgba(80,160,240,.2);
+      border-radius:6px; padding:10px 14px; font-size:.78rem;
+      line-height:1.7; color:#c8e0ff; font-weight:300; cursor:pointer;
+      transition:background .2s;
+    }
+    .voss-line:hover { background:rgba(80,160,240,.1); }
+    .voss-header { display:flex; align-items:center; gap:12px; margin-bottom:6px; }
+    .voss-name {
+      font-family:'Orbitron',sans-serif; font-size:.6rem;
+      letter-spacing:.18em; color:#5aaeff;
+    }
+    #co-close {
+      margin-top:8px; padding:9px 28px; background:transparent;
+      border:1px solid rgba(80,160,240,.4); border-radius:4px;
+      color:#a8d4f5; font-family:'Orbitron',sans-serif; font-size:.7rem;
+      letter-spacing:.16em; cursor:pointer; transition:all .22s;
+    }
+    #co-close:hover { background:rgba(80,160,240,.12); }
+
+    /* ── STORY PANEL ─────────────────────────────────────────────── */
+    #story-panel {
+      position:absolute; bottom:24px; left:50%; transform:translateX(-50%);
+      width:min(560px,90vw); background:rgba(4,14,30,.88);
+      border:1px solid rgba(80,160,240,.28); border-radius:10px;
+      padding:16px 20px; pointer-events:all; backdrop-filter:blur(8px);
+    }
+    #speaker-name {
+      font-family:'Orbitron',sans-serif; font-size:.6rem; letter-spacing:.22em;
+      color:#5aaeff; margin-bottom:7px; text-transform:uppercase;
+    }
+    #dialogue-text { font-size:.81rem; line-height:1.75; color:#cce4ff; font-weight:300; }
+    #dialogue-hint {
+      margin-top:9px; font-size:.62rem; letter-spacing:.14em;
+      color:rgba(100,170,240,.4); animation:blink 1.6s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+    #controls-hint {
+      position:absolute; bottom:106px; right:22px;
+      font-size:.62rem; font-weight:300; color:rgba(140,195,240,.28);
+      letter-spacing:.1em; line-height:2; text-align:right;
+    }
+    #crosshair {
+      position:absolute; top:50%; left:50%;
+      transform:translate(-50%,-50%); width:14px; height:14px; opacity:.35;
+    }
+    #crosshair::before,#crosshair::after {
+      content:''; position:absolute; background:#90c8f0;
+    }
+    #crosshair::before { width:100%; height:1px; top:50%; left:0; }
+    #crosshair::after  { width:1px; height:100%; left:50%; top:0; }
+
+    /* ── CUTSCENE ─────────────────────────────────────────────────── */
+    #cutscene { position:fixed; inset:0; background:#000; z-index:200; overflow:hidden; }
+    #cutscene::before,#cutscene::after {
+      content:''; position:absolute; left:0; right:0; height:11vh; background:#000; z-index:10;
+    }
+    #cutscene::before { top:0; } #cutscene::after { bottom:0; }
+    #scene-canvas { width:100vw; height:100vh; display:block; }
+    #cutscene-ui { position:absolute; inset:0; z-index:20; pointer-events:none; }
+    #scene-location {
+      position:absolute; top:13vh; left:50%; transform:translateX(-50%);
+      font-size:.68rem; letter-spacing:.24em; color:rgba(130,195,250,.75);
+      font-weight:300; opacity:0; transition:opacity .8s ease;
+      white-space:nowrap;
+    }
+    #narration-box {
+      position:absolute; bottom:13vh; left:50%; transform:translateX(-50%);
+      width:min(660px,86vw); text-align:center;
+    }
+    #narration-speaker {
+      font-family:'Orbitron',sans-serif; font-size:.58rem; letter-spacing:.22em;
+      color:#5aaeff; margin-bottom:9px; opacity:0; transition:opacity .5s ease .3s;
+      text-transform:uppercase;
+    }
+    #narration-text {
+      font-size:.88rem; line-height:1.8; color:#cce4ff; font-weight:300;
+      opacity:0; transition:opacity .7s ease .5s; min-height:3em;
+    }
+    #narration-box.visible #narration-speaker,
+    #narration-box.visible #narration-text { opacity:1; }
+    #scene-continue {
+      position:absolute; bottom:calc(13vh - 26px); right:36px;
+      font-size:.62rem; letter-spacing:.15em; color:rgba(100,180,240,.4);
+      animation:blink 1.4s ease-in-out infinite; pointer-events:all; cursor:pointer;
+    }
+    #scene-skip {
+      position:absolute; top:13vh; right:22px; font-size:.62rem;
+      letter-spacing:.14em; color:rgba(255,255,255,.18); cursor:pointer;
+      pointer-events:all; padding:5px 10px; border:1px solid rgba(255,255,255,.1);
+      border-radius:3px; transition:all .2s;
+    }
+    #scene-skip:hover { color:rgba(255,255,255,.5); border-color:rgba(255,255,255,.26); }
+    #scene-progress {
+      position:absolute; bottom:calc(13vh - 8px); left:50%;
+      transform:translateX(-50%); display:flex; gap:7px;
+    }
+    .scene-dot { width:5px; height:5px; border-radius:50%; background:rgba(255,255,255,.12); transition:background .4s; }
+    .scene-dot.active { background:#5aaeff; box-shadow:0 0 6px #5aaeff; }
+    .scene-dot.done   { background:rgba(100,175,250,.3); }
+    #scene-wipe { position:absolute; inset:0; background:#000; z-index:15; opacity:0; pointer-events:none; transition:opacity .45s ease; }
+    #scene-wipe.wipe-in  { opacity:1; }
+    #scene-wipe.wipe-out { opacity:0; }
+
+    /* ── TITLE ─────────────────────────────────────────────────────── */
+    #intro-overlay {
+      position:fixed; inset:0; background:#030c1c; z-index:100;
+      display:none; flex-direction:column; align-items:center;
+      justify-content:center; gap:18px; transition:opacity 1s ease;
+    }
+    #intro-overlay h1 {
+      font-family:'Orbitron',sans-serif; font-size:clamp(1.8rem,4vw,3rem);
+      font-weight:900; color:#b8d8f8; letter-spacing:.2em; text-align:center;
+      text-shadow:0 0 50px rgba(80,160,240,.4);
+    }
+    #intro-overlay p { font-size:.78rem; font-weight:300; color:rgba(130,190,240,.6); letter-spacing:.18em; }
+    #start-btn {
+      margin-top:18px; padding:12px 40px; background:transparent;
+      border:1px solid rgba(80,160,240,.55); border-radius:4px;
+      color:#b8d8f8; font-family:'Orbitron',sans-serif; font-size:.75rem;
+      letter-spacing:.2em; cursor:pointer; pointer-events:all; transition:all .25s;
+    }
+    #start-btn:hover { background:rgba(80,160,240,.1); box-shadow:0 0 24px rgba(80,160,240,.22); }
+  </style>
+</head>
+<body>
+
+<!-- CUTSCENE -->
+<div id="cutscene">
+  <canvas id="scene-canvas"></canvas>
+  <div id="scene-wipe"></div>
+  <div id="cutscene-ui">
+    <div id="scene-location"></div>
+    <div id="narration-box">
+      <div id="narration-speaker"></div>
+      <div id="narration-text"></div>
+    </div>
+    <div id="scene-continue" onclick="nextScene()">CLICK TO CONTINUE ▶</div>
+    <div id="scene-skip" onclick="skipCutscene()">SKIP ▶▶</div>
+    <div id="scene-progress"></div>
+  </div>
+</div>
+
+<!-- TITLE -->
+<div id="intro-overlay">
+  <h1>REMAKE THE WORLD</h1>
+  <p>GALACTIC SCIENCE ADMINISTRATION — RESEARCH VESSEL AURORA</p>
+  <p style="color:rgba(130,190,240,.38);font-size:.72rem;">WELCOME, SCIENTIST. YOUR MISSION AWAITS.</p>
+  <button id="start-btn" onclick="startGame()">ENTER THE LAB</button>
+</div>
+
+<!-- 3D CANVAS -->
+<div id="canvas-container"></div>
+
+<!-- CONSOLE OVERLAY (opens when player approaches front console) -->
+<div id="console-overlay">
+  <div class="co-title">MASTER CONSOLE — GSA AURORA</div>
+  <div class="co-grid">
+    <!-- Recipes panel -->
+    <div class="co-panel">
+      <h3>Crafting Recipes</h3>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Quarks → Hadrons</div>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Proton + Neutron → Nucleus</div>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Nucleus + Electrons → Hydrogen</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>H + H + O → Water (locked)</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>C + O₂ → Carbon Dioxide (locked)</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Organic molecules → Glucose (locked)</div>
+    </div>
+    <!-- Crafted items -->
+    <div class="co-panel">
+      <h3>What You've Built</h3>
+      <div class="recipe-row"><div class="recipe-dot dot-ready"></div>Particles discovered: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Atoms assembled: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Molecules synthesised: 0</div>
+      <div class="recipe-row"><div class="recipe-dot dot-locked"></div>Living cells: 0</div>
+      <div style="margin-top:14px;font-size:.72rem;color:rgba(100,170,240,.5);font-weight:300;">
+        Head to the Crafting Station on the<br>left wall to begin building!
+      </div>
+    </div>
+    <!-- Director Voss -->
+    <div class="co-panel" style="grid-column:1/-1">
+      <h3>Director Voss — Communications</h3>
+      <div class="voss-box">
+        <div class="voss-header">
+          <div class="voss-portrait">👩‍🚀</div>
+          <div class="voss-name">Director Voss &nbsp;·&nbsp; GSA Command</div>
+        </div>
+        <div class="voss-line" onclick="vossLine(0)">"How do I start crafting?"</div>
+        <div class="voss-line" onclick="vossLine(1)">"What's the mission again?"</div>
+        <div class="voss-line" onclick="vossLine(2)">"Tell me about the Space Imps."</div>
+        <div id="voss-reply" style="display:none;margin-top:8px;padding:12px 16px;background:rgba(80,160,240,.07);border-left:2px solid #5aaeff;border-radius:4px;font-size:.8rem;line-height:1.8;color:#cce4ff;font-weight:300;"></div>
+      </div>
+    </div>
+  </div>
+  <button id="co-close" onclick="closeConsole()">CLOSE CONSOLE</button>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div id="top-bar">
+    <div id="game-title">REMAKE THE WORLD</div>
+    <div id="gsa-badge">GSA RESEARCH VESSEL — AURORA</div>
+  </div>
+  <div id="crosshair"></div>
+  <div id="prompt"></div>
+  <div id="controls-hint">WASD — MOVE<br>MOUSE — LOOK<br>CLICK — LOCK CURSOR<br>ESC — RELEASE<br>E — INTERACT</div>
+  <div id="story-panel">
+    <div id="speaker-name">Director Voss</div>
+    <div id="dialogue-text">Welcome aboard the Aurora! Explore the lab — approach the Master Console at the far end to check recipes and talk to me, or head to the Crafting Station on the left wall to get started.</div>
+    <div id="dialogue-hint">[ WASD TO EXPLORE · E TO INTERACT ]</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// THREE.JS SCENE
+// ═══════════════════════════════════════════════════════════════════
+const scene    = new THREE.Scene();
+const camera   = new THREE.PerspectiveCamera(68, innerWidth/innerHeight, 0.05, 200);
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.9;   // ← dimmer than before
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+// Darker background — deep navy rather than light sky
+scene.background = new THREE.Color(0x070f1c);
+scene.fog = new THREE.Fog(0x070f1c, 16, 34);
+
+camera.position.set(0, 1.7, 7);
+
+// ── Helpers ────────────────────────────────────────────────────────
+function box(w,h,d,color,rough,metal){
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(w,h,d),
+    new THREE.MeshStandardMaterial({color, roughness:rough??0.55, metalness:metal??0.05})
+  );
+}
+function place(mesh,x,y,z,ry){
+  mesh.position.set(x,y,z);
+  if(ry) mesh.rotation.y=ry;
+  mesh.castShadow=true; mesh.receiveShadow=true;
+  scene.add(mesh); return mesh;
+}
+
+// ── Lighting — significantly dimmer ───────────────────────────────
+scene.add(new THREE.AmbientLight(0x8aacc8, 0.9));   // was 2.2
+
+const sun = new THREE.DirectionalLight(0xc0d8f0, 0.7);  // was 1.4
+sun.position.set(5,14,7); sun.castShadow=true;
+sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.left=-22; sun.shadow.camera.right=22;
+sun.shadow.camera.top=22; sun.shadow.camera.bottom=-22;
+sun.shadow.camera.far=60;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x6090b8, 0.35);  // was 0.8
+fill.position.set(-8,6,-3); scene.add(fill);
+
+const strips=[];
+[[-7,4,-6],[7,4,-6],[-7,4,4],[7,4,4],[0,4,0]].forEach(([x,y,z])=>{
+  const l=new THREE.PointLight(0x5088c0, 0.65, 11);   // was 1.0
+  l.position.set(x,y,z); scene.add(l); strips.push(l);
+});
+
+// ── Room ───────────────────────────────────────────────────────────
+const RW=22, RH=5.2, RD=20;
+
+const floorMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(RW,RD),
+  new THREE.MeshStandardMaterial({color:0x0e1e30, roughness:0.55, metalness:0.08})
+);
+floorMesh.rotation.x=-Math.PI/2; floorMesh.receiveShadow=true; scene.add(floorMesh);
+
+const grid = new THREE.GridHelper(RW,22,0x1a3454,0x1a3454);
+grid.position.y=0.003;
+grid.material.opacity=0.55; grid.material.transparent=true;
+scene.add(grid);
+
+const ceilMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(RW,RD),
+  new THREE.MeshStandardMaterial({color:0x0a1828, roughness:0.7})
+);
+ceilMesh.rotation.x=Math.PI/2; ceilMesh.position.y=RH; scene.add(ceilMesh);
+
+const wMat = new THREE.MeshStandardMaterial({color:0x0d2038, roughness:0.65});
+function wall(w,h,d,x,y,z){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),wMat);
+  m.position.set(x,y,z); m.receiveShadow=true; scene.add(m);
+}
+wall(RW,RH,0.22,  0,   RH/2,-RD/2);
+wall(RW,RH,0.22,  0,   RH/2, RD/2);
+wall(0.22,RH,RD,-RW/2, RH/2,   0);
+wall(0.22,RH,RD, RW/2, RH/2,   0);
+
+// Ceiling light panels — dimmer
+const panelMat = new THREE.MeshStandardMaterial({
+  color:0xffffff, emissive:0x6090cc, emissiveIntensity:0.5, roughness:0.25
+});
+[[-5,-5],[5,-5],[-5,5],[5,5],[0,0],[-5,0],[5,0]].forEach(([px,pz])=>{
+  const p=new THREE.Mesh(new THREE.BoxGeometry(2.0,0.055,0.8),panelMat);
+  p.position.set(px,RH-0.03,pz); scene.add(p);
+  const pl=new THREE.PointLight(0x8ab8e0,0.28,5.5);   // was 0.5
+  pl.position.set(px,RH-0.35,pz); scene.add(pl);
+});
+
+// Accent stripe — back wall
+const stripe=new THREE.Mesh(
+  new THREE.BoxGeometry(RW,0.16,0.05),
+  new THREE.MeshStandardMaterial({color:0x2a6096,roughness:.45,metalness:.2})
+);
+stripe.position.set(0,2.2,-RD/2+0.14); scene.add(stripe);
+
+// GSA logo panel — back wall
+place(box(2.4,1.15,0.07,0x1e4878,0.38,0.28),0,3.1,-RD/2+0.15);
+place(box(1.9,0.72,0.05,0x2e6098,0.28,0.42),0,3.1,-RD/2+0.21);
+
+// ── Main workbench — back wall ─────────────────────────────────────
+const bMat=new THREE.MeshStandardMaterial({color:0x1a3456,roughness:0.42,metalness:0.22});
+
+const benchSurface=new THREE.Mesh(new THREE.BoxGeometry(5.6,0.1,1.5),bMat);
+benchSurface.position.set(0,1.0,-6.4);
+benchSurface.castShadow=true; benchSurface.receiveShadow=true; scene.add(benchSurface);
+
+[[-2.5,-6.9],[2.5,-6.9],[-2.5,-5.6],[2.5,-5.6]].forEach(([lx,lz])=>{
+  place(box(0.1,1.0,0.1,0x0e2240,0.5,0.2),lx,0.5,lz);
+});
+place(box(5.4,0.06,1.3,0x162c48,0.5,0.1),0,0.38,-6.4);
+
+// Monitor
+place(box(0.38,0.05,0.32,0x1c3858,0.4,0.12),0,1.07,-6.55);
+place(box(0.055,0.48,0.055,0x162c48,0.5,0.1),0,1.33,-6.55);
+place(box(1.52,0.94,0.07,0x1e3a58,0.32,0.12),0,1.88,-6.88);
+const screenMat=new THREE.MeshStandardMaterial({color:0x040e1e,emissive:0x0c3080,emissiveIntensity:0.9,roughness:0.1});
+const monScreen=new THREE.Mesh(new THREE.BoxGeometry(1.33,0.76,0.04),screenMat);
+monScreen.position.set(0,1.88,-6.84); scene.add(monScreen);
+place(box(0.88,0.03,0.28,0x1a3454,0.5,0.04),0,1.065,-6.1);
+place(box(0.5,0.025,0.36,0xe8f4ff,0.7,0.0),1.2,1.065,-6.15);
+
+// Left side console
+place(box(1.3,1.5,0.95,0x142e4a,0.42,0.14),-3.7,0.75,-6.8);
+const cScreen=new THREE.Mesh(new THREE.BoxGeometry(0.82,0.54,0.04),
+  new THREE.MeshStandardMaterial({color:0x020810,emissive:0x082860,emissiveIntensity:0.8,roughness:0.1}));
+cScreen.position.set(-3.7,1.18,-6.33); scene.add(cScreen);
+
+// Right instrument tower
+place(box(1.05,2.3,0.9,0x162e4c,0.42,0.16),3.8,1.15,-6.8);
+[[0xff5533,[0.1,2.05]],[0x3399ff,[-0.1,1.85]],[0x33ff88,[0.1,1.65]],[0x3399ff,[-0.1,1.45]]].forEach(([col,[ox,oy]])=>{
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.032,8,8),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:2.2}));
+  d.position.set(3.8+ox,oy,-6.36); scene.add(d);
+});
+
+// ── Shelves — back wall sides ──────────────────────────────────────
+[-6.8,6.8].forEach(sx=>{
+  place(box(2.1,2.6,0.14,0x0e2038,0.52,0.08),sx,1.3,-9.82);
+  [0.25,0.82,1.42,2.0].forEach(sy=>place(box(1.88,0.055,0.3,0x162c44,0.48,0.1),sx,sy,-9.7));
+  const cols=[0x225588,0x2266aa,0x336688,0x3377aa,0x2255aa,0x224488];
+  [0,1,2,3,4,5].forEach(si=>{
+    place(box(0.16,0.24,0.16,cols[si],0.3,0.15),sx-0.44+(si%3)*0.44,[0.42,0.42,0.42,1.0,1.0,1.0][si],-9.62);
+  });
+});
+
+// ── Overhead duct ──────────────────────────────────────────────────
+place(box(RW-2,0.2,0.2,0x0e2038,0.55,0.22),0,RH-0.12,-2);
+[-6,-2,2,6].forEach(vx=>place(box(0.8,0.04,0.8,0x0a1a2e,0.65,0.12),vx,RH-0.02,2.5));
+
+// Floor accent strips
+[[-RD/2+1.4],[RD/2-1.4]].forEach(([fz])=>{
+  const fs=new THREE.Mesh(new THREE.BoxGeometry(RW,0.016,0.1),
+    new THREE.MeshStandardMaterial({color:0x2a6090,roughness:0.38,metalness:0.14}));
+  fs.position.set(0,0.009,fz); scene.add(fs);
+});
+
+// ── Central hologram pedestal ──────────────────────────────────────
+const pedMesh=new THREE.Mesh(new THREE.CylinderGeometry(0.65,0.75,0.1,36),
+  new THREE.MeshStandardMaterial({color:0x162c44,roughness:0.32,metalness:0.38}));
+pedMesh.position.set(0,0.05,0); pedMesh.receiveShadow=true; scene.add(pedMesh);
+
+const ringMesh=new THREE.Mesh(new THREE.TorusGeometry(0.65,0.022,14,80),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1868c0,emissiveIntensity:1.1}));
+ringMesh.rotation.x=Math.PI/2; ringMesh.position.y=0.11; scene.add(ringMesh);
+
+// Central atom — same position
+const atomGroup=new THREE.Group();
+atomGroup.position.set(0,1.5,0); scene.add(atomGroup);
+const nucleus=new THREE.Mesh(new THREE.SphereGeometry(0.14,20,20),
+  new THREE.MeshStandardMaterial({color:0xffd060,emissive:0xffaa00,emissiveIntensity:1.4,roughness:0.22}));
+atomGroup.add(nucleus);
+const orbitData=[
+  {color:0x3a9eff,r:0.45,rx:0,ry:0,speed:1.1},
+  {color:0x70c8ff,r:0.64,rx:Math.PI/2.2,ry:0.8,speed:0.72},
+  {color:0x9ad8ff,r:0.80,rx:Math.PI/3.1,ry:-0.5,speed:0.48},
+];
+const electrons=[];
+orbitData.forEach(o=>{
+  const orbit=new THREE.Mesh(new THREE.TorusGeometry(o.r,0.007,8,90),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:0.6,transparent:true,opacity:0.65}));
+  orbit.rotation.x=o.rx; orbit.rotation.y=o.ry; atomGroup.add(orbit);
+  const eDot=new THREE.Mesh(new THREE.SphereGeometry(0.042,10,10),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:2.4}));
+  atomGroup.add(eDot);
+  electrons.push({mesh:eDot,r:o.r,speed:o.speed,angle:Math.random()*Math.PI*2,orbit});
+});
+
+// ═══════════════════════════════════════════════════════════════════
+// 1) MASTER CONSOLE — FRONT WALL (z ≈ +8)
+// ═══════════════════════════════════════════════════════════════════
+const consoleZ = 8.5;
+
+// Main console body — wide, impressive
+const masterConsole=new THREE.Mesh(new THREE.BoxGeometry(9,1.5,0.9),bMat);
+masterConsole.position.set(0,0.75,consoleZ);
+masterConsole.castShadow=true; masterConsole.receiveShadow=true; scene.add(masterConsole);
+
+// Raised back panel
+place(box(9,2.8,0.15,0x0e2038,0.5,0.12),0,2.15,consoleZ+0.38);
+// Horizontal divider stripe
+place(box(9,0.1,0.12,0x2a6090,0.4,0.2),0,2.8,consoleZ+0.42);
+// Accent stripe at base
+place(box(9,0.08,0.92,0x2a6090,0.4,0.2),0,1.54,consoleZ);
+
+// Three large screens on back panel
+const screenColors=[0x0830a0,0x083090,0x0828a0];
+[-2.8,0,2.8].forEach((sx,i)=>{
+  const sc=new THREE.Mesh(new THREE.BoxGeometry(2.4,1.8,0.04),
+    new THREE.MeshStandardMaterial({color:0x020a1c,emissive:screenColors[i],emissiveIntensity:0.75,roughness:0.08}));
+  sc.position.set(sx,2.28,consoleZ+0.45); scene.add(sc);
+  // Screen glow light
+  const sg=new THREE.PointLight(0x3060d0,0.5,3.5);
+  sg.position.set(sx,2.28,consoleZ+0.7); scene.add(sg);
+  // Label plate below screen
+  place(box(2.2,0.2,0.04,0x162c4a,0.5,0.2),sx,1.2,consoleZ+0.45);
+});
+
+// Control surface — buttons, dials, sliders
+for(let bx=-3.8;bx<=3.8;bx+=0.55){
+  const btn=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,0.045,10),
+    new THREE.MeshStandardMaterial({color:0x1a3456,roughness:0.45,metalness:0.3}));
+  btn.position.set(bx,1.55,consoleZ+0.1);
+  btn.rotation.x=Math.PI/2; scene.add(btn);
+}
+// Lit indicator row
+const indicatorCols=[0xff5533,0x3399ff,0x33ff88,0x3399ff,0xffcc33,0x3399ff,0xff5533,0x33ff88];
+indicatorCols.forEach((col,i)=>{
+  const d=new THREE.Mesh(new THREE.SphereGeometry(0.038,8,8),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.8}));
+  d.position.set(-3.3+i*0.95,1.35,consoleZ+0.42); scene.add(d);
+});
+
+// Side wings of console
+[-4.8,4.8].forEach(wx=>{
+  place(box(1.2,1.2,0.8,0x0e2038,0.5,0.14),wx,0.6,consoleZ);
+  const ws=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.65,0.04),
+    new THREE.MeshStandardMaterial({color:0x020810,emissive:0x061848,emissiveIntensity:0.7,roughness:0.1}));
+  ws.position.set(wx,0.8,consoleZ+0.38); scene.add(ws);
+});
+
+// "INTERACT" label plate visible to player approaching
+place(box(1.4,0.22,0.04,0x1a4878,0.4,0.25),0,0.22,consoleZ+0.46);
+
+// ═══════════════════════════════════════════════════════════════════
+// 2) CRAFTING STATION — LEFT WALL with smaller floating atom
+// ═══════════════════════════════════════════════════════════════════
+const craftX = -9.5;
+
+// Bench surface
+const craftBench=new THREE.Mesh(new THREE.BoxGeometry(0.95,0.1,4.2),bMat);
+craftBench.position.set(craftX,1.0,-2);
+craftBench.castShadow=true; craftBench.receiveShadow=true; scene.add(craftBench);
+place(box(0.9,0.06,4.0,0x0e2038,0.5,0.1),craftX,0.38,-2);
+[[-3.8],[-0.2],[3.8]].forEach(([lz])=>place(box(0.08,1.0,0.08,0x0a1a30,0.5,0.2),craftX,0.5,-2+(lz/4.0)));
+
+// Crafting station back panel
+place(box(0.15,3.8,4.4,0x0c1e34,0.5,0.1),craftX+0.52,1.9,-2);
+// Station title plate
+const titlePl=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.35,1.8),
+  new THREE.MeshStandardMaterial({color:0x1a4878,roughness:0.38,metalness:0.28}));
+titlePl.position.set(craftX+0.56,3.55,-2); scene.add(titlePl);
+
+// SMALL floating atom — crafting station
+const craftAtomGroup=new THREE.Group();
+craftAtomGroup.position.set(craftX+0.5,2.6,-2); scene.add(craftAtomGroup);
+
+const craftNucleus=new THREE.Mesh(new THREE.SphereGeometry(0.07,16,16),
+  new THREE.MeshStandardMaterial({color:0xffd060,emissive:0xffaa00,emissiveIntensity:1.5,roughness:0.2}));
+craftAtomGroup.add(craftNucleus);
+
+const craftOrbitData=[
+  {color:0x3a9eff,r:0.22,rx:0,ry:0,speed:1.6},
+  {color:0x70c8ff,r:0.32,rx:Math.PI/2.2,ry:0.9,speed:1.1},
+];
+const craftElectrons=[];
+craftOrbitData.forEach(o=>{
+  const orbit=new THREE.Mesh(new THREE.TorusGeometry(o.r,0.005,8,64),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:0.65,transparent:true,opacity:0.6}));
+  orbit.rotation.x=o.rx; orbit.rotation.y=o.ry; craftAtomGroup.add(orbit);
+  const eDot=new THREE.Mesh(new THREE.SphereGeometry(0.022,8,8),
+    new THREE.MeshStandardMaterial({color:o.color,emissive:o.color,emissiveIntensity:2.5}));
+  craftAtomGroup.add(eDot);
+  craftElectrons.push({mesh:eDot,r:o.r,speed:o.speed,angle:Math.random()*Math.PI*2,orbit});
+});
+
+// Crafting atom pedestal ring
+const craftRing=new THREE.Mesh(new THREE.TorusGeometry(0.3,0.012,10,60),
+  new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x1868c0,emissiveIntensity:1.2}));
+craftRing.rotation.x=Math.PI/2; craftRing.position.set(craftX+0.5,1.12,-2); scene.add(craftRing);
+
+// Small screens on crafting bench
+[-0.8,0.8].forEach(oz=>{
+  const cs2=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.4,0.6),
+    new THREE.MeshStandardMaterial({color:0x020810,emissive:0x0a3060,emissiveIntensity:0.85,roughness:0.1}));
+  cs2.position.set(craftX+0.54,1.45,-2+oz); scene.add(cs2);
+});
+
+// Glow light near craft station
+const craftLight=new THREE.PointLight(0x2060c0,0.7,4);
+craftLight.position.set(craftX+0.6,2.6,-2); scene.add(craftLight);
+
+// ═══════════════════════════════════════════════════════════════════
+// 3) AIRLOCK — BACK WALL (z = -RD/2), left side
+// ═══════════════════════════════════════════════════════════════════
+const airlockX = -4.5;
+const airlockZ = -RD/2 + 0.35;
+
+// Airlock surround / frame
+place(box(2.8,3.8,0.3,0x0c2038,0.5,0.18),airlockX,1.9,airlockZ);
+// Frame edges — lit strips
+const alFrameMat=new THREE.MeshStandardMaterial({color:0x2a6090,emissive:0x1a4878,emissiveIntensity:0.8});
+[[-1.3,0],[1.3,0],[0,-1.8],[0,1.7]].forEach(([ox,oy])=>{
+  const isH=Math.abs(oy)>0;
+  const fw=isH?2.6:0.1, fh=isH?0.1:3.6;
+  const fm=new THREE.Mesh(new THREE.BoxGeometry(fw,fh,0.05),alFrameMat);
+  fm.position.set(airlockX+ox,1.9+oy,airlockZ+0.16); scene.add(fm);
+});
+
+// Door — two sliding panels, currently closed
+const doorMat=new THREE.MeshStandardMaterial({color:0x0e2840,roughness:0.4,metalness:0.35});
+const doorL=new THREE.Mesh(new THREE.BoxGeometry(1.15,3.4,0.12),doorMat);
+doorL.position.set(airlockX-0.58,1.9,airlockZ+0.15); scene.add(doorL);
+const doorR=new THREE.Mesh(new THREE.BoxGeometry(1.15,3.4,0.12),doorMat);
+doorR.position.set(airlockX+0.58,1.9,airlockZ+0.15); scene.add(doorR);
+
+// Door centre seam glow
+const seamMat=new THREE.MeshStandardMaterial({color:0x3a8ee8,emissive:0x3a8ee8,emissiveIntensity:1.0});
+const seam=new THREE.Mesh(new THREE.BoxGeometry(0.025,3.4,0.04),seamMat);
+seam.position.set(airlockX,1.9,airlockZ+0.22); scene.add(seam);
+
+// Porthole window in door centre top
+const porthole=new THREE.Mesh(new THREE.CylinderGeometry(0.22,0.22,0.12,24),
+  new THREE.MeshStandardMaterial({color:0x081828,roughness:0.05,metalness:0.2,transparent:true,opacity:0.88}));
+porthole.position.set(airlockX,2.9,airlockZ+0.22); porthole.rotation.x=Math.PI/2; scene.add(porthole);
+// Porthole frame
+const phFrame=new THREE.Mesh(new THREE.TorusGeometry(0.22,0.035,10,32),
+  new THREE.MeshStandardMaterial({color:0x2a5880,roughness:0.38,metalness:0.4}));
+phFrame.position.set(airlockX,2.9,airlockZ+0.25); scene.add(phFrame);
+
+// Control panel beside airlock
+place(box(0.55,1.0,0.12,0x0c1e34,0.45,0.2),airlockX+1.65,1.1,airlockZ+0.2);
+[[0xff5533,0.72],[0x33cc88,0.88],[0x3399ff,1.04]].forEach(([col,cy])=>{
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(0.055,0.055,0.04,10),
+    new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:1.6}));
+  b.position.set(airlockX+1.65,cy,airlockZ+0.26); b.rotation.x=Math.PI/2; scene.add(b);
+});
+
+// Overhead "AIRLOCK" label light bar
+const alBar=new THREE.Mesh(new THREE.BoxGeometry(2.6,0.12,0.08),
+  new THREE.MeshStandardMaterial({color:0xff8833,emissive:0xff5500,emissiveIntensity:0.6}));
+alBar.position.set(airlockX,3.82,airlockZ+0.2); scene.add(alBar);
+const alLight=new THREE.PointLight(0xff6600,0.4,2.5);
+alLight.position.set(airlockX,3.5,airlockZ+0.5); scene.add(alLight);
+
+// ═══════════════════════════════════════════════════════════════════
+// 4) SPACE WINDOW — RIGHT WALL with floating objects
+// ═══════════════════════════════════════════════════════════════════
+const winX = RW/2 - 0.22;
+
+// Outer frame
+place(box(0.22,2.5,4.2,0x0e2438,0.42,0.2),winX,2.55,-0.5);
+// Inner trim
+place(box(0.18,2.22,3.85,0x162e48,0.4,0.12),winX,2.55,-0.5);
+// Cross-strut (horizontal bar dividing window)
+place(box(0.06,0.08,3.8,0x1a3a58,0.45,0.18),winX,2.55,-0.5);
+// Cross-strut (vertical divider)
+place(box(0.06,2.2,0.08,0x1a3a58,0.45,0.18),winX,2.55,-0.5);
+
+// Glass pane
+const glassMat=new THREE.MeshStandardMaterial({
+  color:0x010610,roughness:0.04,metalness:0.1,transparent:true,opacity:0.85
+});
+const glass=new THREE.Mesh(new THREE.BoxGeometry(0.06,2.1,3.7),glassMat);
+glass.position.set(winX,2.55,-0.5); scene.add(glass);
+
+// Static star field beyond window
+for(let i=0;i<70;i++){
+  const s=i*137.5;
+  const star=new THREE.Mesh(new THREE.SphereGeometry(0.018,4,4),
+    new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xffffff,emissiveIntensity:3}));
+  star.position.set(winX+0.3,1.6+Math.random()*1.85,-2.4+Math.random()*3.8);
+  scene.add(star);
+}
+
+// Floating objects — asteroids + small debris that drift past the window
+const floaters=[];
+const asteroidColors=[0x445566,0x3a4a5a,0x526070,0x3d5060];
+for(let i=0;i<6;i++){
+  const sz=0.08+Math.random()*0.28;
+  const ast=new THREE.Mesh(
+    new THREE.IcosahedronGeometry(sz,0),
+    new THREE.MeshStandardMaterial({color:asteroidColors[i%4],roughness:0.85,metalness:0.1})
+  );
+  // Start positions spread along window depth, outside the wall
+  ast.position.set(winX+0.55+Math.random()*0.4, 1.7+Math.random()*1.6, -2.4+Math.random()*3.8);
+  ast._speed  = (0.003+Math.random()*0.006) * (Math.random()<0.5?1:-1);
+  ast._drift  = (Math.random()-0.5)*0.001;
+  ast._startZ = ast.position.z;
+  scene.add(ast);
+  floaters.push(ast);
+}
+// A distant planet/moon
+const planet=new THREE.Mesh(new THREE.SphereGeometry(0.32,16,16),
+  new THREE.MeshStandardMaterial({color:0x2a4060,roughness:0.7,metalness:0.05}));
+planet.position.set(winX+0.6,3.1,-1.2); scene.add(planet);
+// Planet glow ring
+const pRing=new THREE.Mesh(new THREE.TorusGeometry(0.44,0.05,6,40),
+  new THREE.MeshStandardMaterial({color:0x3a6080,roughness:0.5,transparent:true,opacity:0.5}));
+pRing.position.copy(planet.position); pRing.rotation.x=0.4; scene.add(pRing);
+
+// Window sill / ledge
+place(box(0.25,0.1,4.0,0x162e48,0.45,0.15),winX,1.44,-0.5);
+
+// ── Player controls ────────────────────────────────────────────────
+let yaw=0,pitch=0;
+const keys={};
+let pointerLocked=false,gameStarted=false;
+let consoleOpen=false;
+
+document.addEventListener('keydown',e=>{
+  keys[e.code]=true;
+  if(e.code==='KeyE' && gameStarted && !consoleOpen) checkInteract();
+  if(e.code==='Escape' && consoleOpen) closeConsole();
+});
+document.addEventListener('keyup',e=>{ keys[e.code]=false; });
+
+renderer.domElement.addEventListener('click',()=>{
+  if(gameStarted && !consoleOpen) renderer.domElement.requestPointerLock();
+});
+document.addEventListener('pointerlockchange',()=>{
+  pointerLocked=document.pointerLockElement===renderer.domElement;
+});
+document.addEventListener('mousemove',e=>{
+  if(!pointerLocked) return;
+  yaw  -=e.movementX*0.0018;
+  pitch-=e.movementY*0.0018;
+  pitch=Math.max(-1.0,Math.min(0.75,pitch));
+});
+
+// Interaction zones
+function checkInteract(){
+  const pz=camera.position.z, px=camera.position.x;
+  // Near master console (front wall)
+  if(pz>5.5 && Math.abs(px)<5.5){ openConsole(); return; }
+}
+
+function openConsole(){
+  consoleOpen=true;
+  document.exitPointerLock();
+  document.getElementById('console-overlay').classList.add('open');
+}
+function closeConsole(){
+  consoleOpen=false;
+  document.getElementById('console-overlay').classList.remove('open');
+}
+
+// Voss replies
+const vossLines=[
+  "Head to the glowing Crafting Station on the left wall! It has a small spinning atom above the bench. Click the station to start assembling particles. Once you have enough, the recipes will unlock one by one.",
+  "Our mission is to terraform a brand-new planet from absolute scratch — starting with elementary particles and working all the way up to a living, breathing ecosystem. You'll literally be remaking a world! No pressure.",
+  "Oh, the Space Imps! Mostly harmless little scoundrels. They travel in ramshackle ships, collect junk from dead planets, and absolutely cannot stand the idea of us building something new. They'll try to interfere eventually — but we'll be ready!",
+];
+function vossLine(i){
+  const el=document.getElementById('voss-reply');
+  el.textContent='"'+vossLines[i]+'"';
+  el.style.display='block';
+}
+
+// Proximity prompt
+const promptEl=document.getElementById('prompt');
+function updatePrompt(){
+  const pz=camera.position.z, px=camera.position.x;
+  if(pz>5.0 && Math.abs(px)<5.5){
+    promptEl.textContent='[ E ] Open Master Console';
+    promptEl.classList.add('show');
+  } else {
+    promptEl.classList.remove('show');
+  }
+}
+
+// ── Animate ────────────────────────────────────────────────────────
+const clock=new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const t=clock.getElapsedTime();
+
+  if(gameStarted && !consoleOpen){
+    const speed=0.07;
+    const dir=new THREE.Vector3();
+    if(keys['KeyW']) dir.z-=1;
+    if(keys['KeyS']) dir.z+=1;
+    if(keys['KeyA']) dir.x-=1;
+    if(keys['KeyD']) dir.x+=1;
+    dir.normalize().multiplyScalar(speed).applyEuler(new THREE.Euler(0,yaw,0));
+    camera.position.add(dir);
+    camera.position.x=Math.max(-RW/2+0.7,Math.min(RW/2-0.7,camera.position.x));
+    camera.position.z=Math.max(-RD/2+0.7,Math.min(RD/2-0.7,camera.position.z));
+    camera.position.y=1.7;
+    camera.rotation.order='YXZ';
+    camera.rotation.y=yaw;
+    camera.rotation.x=pitch;
+    updatePrompt();
+  }
+
+  // Central atom
+  atomGroup.rotation.y=t*0.32;
+  atomGroup.position.y=1.5+Math.sin(t*0.85)*0.065;
+  nucleus.scale.setScalar(1+Math.sin(t*2.4)*0.055);
+  electrons.forEach(e=>{
+    e.angle+=e.speed*0.022;
+    e.mesh.position.set(
+      Math.cos(e.angle)*e.r,
+      Math.sin(e.angle)*e.r*Math.sin(e.orbit.rotation.x+0.5),
+      Math.sin(e.angle)*e.r
+    );
+  });
+
+  // Crafting station atom — faster, smaller
+  craftAtomGroup.rotation.y=t*0.6;
+  craftAtomGroup.position.set(craftX+0.5, 2.6+Math.sin(t*1.2)*0.035, -2);
+  craftNucleus.scale.setScalar(1+Math.sin(t*3.0)*0.07);
+  craftElectrons.forEach(e=>{
+    e.angle+=e.speed*0.025;
+    e.mesh.position.set(
+      Math.cos(e.angle)*e.r,
+      Math.sin(e.angle)*e.r*Math.sin(e.orbit.rotation.x+0.5),
+      Math.sin(e.angle)*e.r
+    );
+  });
+  craftRing.material.emissiveIntensity=0.9+Math.sin(t*2.2)*0.4;
+  craftLight.intensity=0.6+Math.sin(t*1.8)*0.2;
+
+  // Airlock seam pulse + orange bar
+  seam.material.emissiveIntensity=0.7+Math.sin(t*2.0)*0.4;
+  alBar.material.emissiveIntensity=0.4+Math.sin(t*1.5)*0.35;
+  alLight.intensity=0.3+Math.sin(t*2.0)*0.15;
+
+  // Floating objects outside window — drift slowly across
+  floaters.forEach((f,i)=>{
+    f.position.z+=f._speed;
+    f.position.y+=f._drift;
+    f.rotation.x+=0.003*(i%2===0?1:-1);
+    f.rotation.y+=0.004;
+    // Wrap around when they drift out of window range
+    if(f.position.z > 1.8)  f.position.z=-2.4;
+    if(f.position.z < -2.8) f.position.z=1.6;
+    f.position.y=Math.max(1.6,Math.min(3.4,f.position.y));
+  });
+  // Planet very slow rotation
+  planet.rotation.y=t*0.04;
+  pRing.rotation.z=t*0.02;
+
+  // Ring pulse
+  ringMesh.material.emissiveIntensity=0.85+Math.sin(t*1.6)*0.28;
+  screenMat.emissiveIntensity=0.82+Math.sin(t*3.4)*0.06;
+
+  strips.forEach((l,i)=>{ l.intensity=0.55+Math.sin(t*0.55+i)*0.15; });
+
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+
+// ═══════════════════════════════════════════════════════════════════
+// CUTSCENE ENGINE
+// ═══════════════════════════════════════════════════════════════════
+const sceneCanvas=document.getElementById('scene-canvas');
+const ctx=sceneCanvas.getContext('2d');
+let sceneIndex=0,sceneAnimFrame=null,sceneAutoTimer=null;
+function resizeSC(){ sceneCanvas.width=innerWidth; sceneCanvas.height=innerHeight; }
+resizeSC(); window.addEventListener('resize',resizeSC);
+
+const scenes=[
+  {location:"EARTH — YEAR 2157 — MIDTOWN UNIVERSITY, 11:48 PM",speaker:"",duration:7500,
+   text:"You are a young scientist burning the midnight oil in your cramped university lab. Your research on particle theory has been turning heads across the galaxy...",draw:drawScene1},
+  {location:"UNIVERSITY LAB — INCOMING TRANSMISSION",speaker:"COMPUTER",duration:6000,
+   text:"\"INCOMING PRIORITY MESSAGE — SENDER: GALACTIC SCIENCE ADMINISTRATION — CLASSIFICATION: URGENT\"",draw:drawScene2},
+  {location:"GSA TRANSMISSION — DIRECTOR VOSS",speaker:"Director Voss",duration:8000,
+   text:"\"Hello, Scientist! I'm Director Voss of the GSA. Your particle research has caught our attention. We have a mission that could make history — and we want YOU for it. Report to Launch Bay 7 at dawn!\"",draw:drawScene3},
+  {location:"EARTH ORBIT — DAWN DEPARTURE",speaker:"",duration:7500,
+   text:"With your bags barely packed and your mind racing with possibilities, you board the GSA shuttle as the sun rises. Earth shrinks in the viewport. You're really doing this.",draw:drawScene4},
+  {location:"DEEP SPACE — 3 DAYS LATER",speaker:"",duration:7500,
+   text:"After three days of travel the pilot's voice crackles overhead: \"Take a look out the starboard window. That big, beautiful ship? That's the Aurora. Welcome home.\"",draw:drawScene5},
+  {location:"GSA RESEARCH VESSEL AURORA — DOCKING BAY",speaker:"Director Voss",duration:7000,
+   text:"\"Welcome aboard! The lab is ready, the equipment is calibrated, and the universe is waiting. Everything you need to Remake the World is right here. Shall we begin?\"",draw:drawScene6},
+];
+
+const progressEl=document.getElementById('scene-progress');
+scenes.forEach((_,i)=>{
+  const d=document.createElement('div');
+  d.className='scene-dot'; d.id='sdot-'+i; progressEl.appendChild(d);
+});
+
+function stars(t,n){
+  n=n||150;
+  for(let i=0;i<n;i++){
+    const s=i*137.5;
+    const x=(Math.sin(s)*.5+.5)*sceneCanvas.width;
+    const y=(Math.cos(s*1.3)*.5+.5)*sceneCanvas.height;
+    const r=(Math.sin(s*3)*.5+.5)*1.4+.3;
+    const tw=.5+.5*Math.sin(t*2+s);
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,255,${tw*.85})`; ctx.fill();
+  }
+}
+function scanlines(){
+  for(let y=0;y<sceneCanvas.height;y+=3){
+    ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(0,y,sceneCanvas.width,1);
+  }
+}
+
+function drawScene1(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#03090f'); bg.addColorStop(1,'#08151f');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#050d18'; ctx.fillRect(W*.63,H*.08,W*.24,H*.34);
+  for(let i=0;i<36;i++){
+    const s=i*47.1;
+    const bx=W*.64+(Math.sin(s)*.5+.5)*W*.22, by=H*.12+(Math.cos(s*1.6)*.5+.5)*H*.27;
+    ctx.fillStyle=`rgba(255,215,110,${(.4+.6*Math.sin(t*1.3+s))*.7})`;
+    ctx.fillRect(bx,by,W*.005,H*.007);
+  }
+  ctx.strokeStyle='#182838'; ctx.lineWidth=6; ctx.strokeRect(W*.63,H*.08,W*.24,H*.34);
+  ctx.fillStyle='#0e1d2c'; ctx.fillRect(W*.08,H*.56,W*.84,H*.38);
+  ctx.fillStyle='#152534'; ctx.fillRect(W*.08,H*.54,W*.84,H*.03);
+  const mg=ctx.createRadialGradient(W*.45,H*.37,0,W*.45,H*.37,W*.22);
+  mg.addColorStop(0,'rgba(40,100,220,.28)'); mg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=mg; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#0b1a2a'; ctx.fillRect(W*.3,H*.2,W*.3,H*.32);
+  const sc=ctx.createLinearGradient(W*.32,H*.22,W*.32,H*.48);
+  sc.addColorStop(0,'#001326'); sc.addColorStop(1,'#00274c');
+  ctx.fillStyle=sc; ctx.fillRect(W*.32,H*.22,W*.26,H*.27);
+  const lines=['> particle_sim.run()','  mass: 0.000511 MeV','  charge: -1','  spin: 1/2','> quark_bind(u,u,d)','  energy: stable','> PROTON FORMED ✓'];
+  ctx.font=`${W*.009}px monospace`; ctx.textAlign='left';
+  lines.forEach((l,i)=>{
+    const a=i===lines.length-1?(0.7+0.3*Math.sin(t*3)):0.52;
+    ctx.fillStyle=i===lines.length-1?`rgba(100,195,255,${a})`:`rgba(75,150,220,0.5)`;
+    ctx.fillText(l,W*.334,H*.254+i*H*.029);
+  });
+  ctx.fillStyle='#09162a'; ctx.fillRect(W*.44,H*.52,W*.02,H*.04); ctx.fillRect(W*.41,H*.555,W*.08,H*.012);
+  [.12,.18,.23,.28].forEach((px,i)=>{ ctx.fillStyle=['#0f1e2e','#0c1826','#091420','#112030'][i]; ctx.fillRect(W*px,H*.57,W*.044,H*.065); });
+  ctx.fillStyle='#0d1e30'; ctx.fillRect(W*.75,H*.565,W*.03,H*.03);
+  ctx.beginPath(); ctx.ellipse(W*.765,H*.566,W*.018,H*.008,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle=`rgba(175,205,235,${.3+.3*Math.sin(t*2.2)})`; ctx.fillRect(W*.763,H*.535,W*.004,H*.022);
+}
+
+function drawScene2(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  drawScene1(t*.18+4);
+  ctx.fillStyle=`rgba(190,25,0,${.09+.06*Math.sin(t*4)})`; ctx.fillRect(0,0,W,H);
+  const pw=W*.47,ph=H*.45,px=(W-pw)/2,py=(H-ph)/2-H*.04;
+  ctx.fillStyle='rgba(2,8,20,.96)'; ctx.fillRect(px,py,pw,ph);
+  ctx.strokeStyle=`rgba(80,165,255,${.6+.4*Math.sin(t*3)})`; ctx.lineWidth=2; ctx.strokeRect(px,py,pw,ph);
+  const cx=W/2,cy=py+ph*.28;
+  ctx.beginPath(); ctx.arc(cx,cy,pw*.105,0,Math.PI*2); ctx.strokeStyle='#55aaff'; ctx.lineWidth=2; ctx.stroke();
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*.9);
+  for(let i=0;i<8;i++){
+    const a=i/8*Math.PI*2;
+    ctx.beginPath(); ctx.arc(Math.cos(a)*pw*.082,Math.sin(a)*pw*.082,pw*.009,0,Math.PI*2);
+    ctx.fillStyle='#55aaff'; ctx.fill();
+  }
+  ctx.restore();
+  ctx.font=`bold ${W*.013}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='#7ac4ff'; ctx.fillText('GSA',cx,cy+4);
+  ctx.font=`${W*.009}px monospace`; ctx.fillStyle='rgba(110,185,255,.8)';
+  ctx.fillText('GALACTIC SCIENCE ADMINISTRATION',cx,py+ph*.48);
+  ctx.fillStyle=Math.sin(t*3)>0?'#ff6633':'#ffaa55';
+  ctx.font=`${W*.008}px 'Orbitron',sans-serif`;
+  ctx.fillText('⚠  PRIORITY TRANSMISSION  ⚠',cx,py+ph*.63);
+  ctx.fillStyle='rgba(150,195,255,.4)'; ctx.font=`${W*.0072}px monospace`;
+  ctx.fillText('ENCRYPTION: LEVEL 9  —  ORIGIN: AURORA VESSEL',cx,py+ph*.79);
+  ctx.textAlign='left';
+}
+
+function drawScene3(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#020609'; ctx.fillRect(0,0,W,H);
+  for(let i=0;i<6;i++){
+    const ly=(H*.1+i*H*.12+t*25)%H;
+    ctx.fillStyle='rgba(25,75,155,.05)'; ctx.fillRect(0,ly,W,H*.05);
+  }
+  const fl=.82+.18*Math.sin(t*13.8)*Math.sin(t*5.4);
+  const cx=W/2,cy=H*.38;
+  const gw=ctx.createRadialGradient(cx,cy,0,cx,cy,W*.21);
+  gw.addColorStop(0,'rgba(35,115,245,.25)'); gw.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gw; ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha=fl;
+  ctx.fillStyle='#081e3c';
+  ctx.beginPath(); ctx.ellipse(cx,cy,W*.075,H*.148,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx,cy+H*.17,W*.16,H*.072,0,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='rgba(75,165,255,.72)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.ellipse(cx-W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(cx+W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx,cy+H*.04,W*.021,.25,Math.PI-.25); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx-W*.042,cy+H*.098); ctx.lineTo(cx,cy+H*.082); ctx.lineTo(cx+W*.042,cy+H*.098);
+  ctx.strokeStyle='rgba(55,140,245,.48)'; ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.font=`${W*.0078}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='rgba(95,175,255,.72)'; ctx.fillText('DIR. VOSS — GSA COMMAND',cx,H*.7);
+  scanlines(); ctx.textAlign='left';
+}
+
+function drawScene4(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#010408'; ctx.fillRect(0,0,W,H); stars(t,200);
+  const eg=ctx.createRadialGradient(W*.3,H*1.12,H*.28,W*.3,H*1.12,H*.72);
+  eg.addColorStop(0,'#1c4e96'); eg.addColorStop(.38,'#1e6432'); eg.addColorStop(.7,'#1c4e96'); eg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(W*.3,H*1.12,H*.68,0,Math.PI*2); ctx.fill();
+  const ag=ctx.createRadialGradient(W*.3,H*1.1,H*.62,W*.3,H*1.1,H*.78);
+  ag.addColorStop(0,'rgba(80,160,255,0)'); ag.addColorStop(.7,'rgba(80,160,255,.14)'); ag.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=ag; ctx.beginPath(); ctx.arc(W*.3,H*1.1,H*.78,0,Math.PI*2); ctx.fill();
+  const sx=W*.44+Math.sin(t*.4)*W*.012,sy=H*.32-(t%25)*H*.004;
+  ctx.save(); ctx.translate(sx,sy); ctx.rotate(-.38);
+  ctx.fillStyle='#8ab8d0'; ctx.fillRect(-W*.013,-H*.024,W*.026,H*.048);
+  ctx.fillStyle='#aad0e0'; ctx.beginPath(); ctx.moveTo(-W*.013,-H*.024); ctx.lineTo(W*.013,-H*.024); ctx.lineTo(0,-H*.048); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#6898b0';
+  ctx.beginPath(); ctx.moveTo(-W*.013,H*.01); ctx.lineTo(-W*.038,H*.028); ctx.lineTo(-W*.013,H*.024); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(W*.013,H*.01); ctx.lineTo(W*.038,H*.028); ctx.lineTo(W*.013,H*.024); ctx.closePath(); ctx.fill();
+  const ea=.45+.45*Math.sin(t*9);
+  const exg=ctx.createLinearGradient(0,H*.024,0,H*.085);
+  exg.addColorStop(0,`rgba(255,185,55,${ea})`); exg.addColorStop(.5,`rgba(255,85,18,${ea*.6})`); exg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=exg; ctx.beginPath(); ctx.ellipse(0,H*.053,W*.009,H*.036,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawScene5(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx.fillStyle='#010206'; ctx.fillRect(0,0,W,H); stars(t*.5,260);
+  const nb=ctx.createRadialGradient(W*.72,H*.28,0,W*.72,H*.28,W*.42);
+  nb.addColorStop(0,'rgba(18,48,118,.35)'); nb.addColorStop(.6,'rgba(8,18,58,.18)'); nb.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=nb; ctx.fillRect(0,0,W,H);
+  const SX=W*.5,SY=H*.42;
+  for(let i=0;i<3;i++){
+    const ex=SX-W*.21+i*W*.028;
+    const eng=ctx.createRadialGradient(ex,SY+H*.044,0,ex,SY+H*.044,W*.062);
+    eng.addColorStop(0,`rgba(75,178,255,${.45+.1*Math.sin(t*2+i)})`); eng.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=eng; ctx.fillRect(0,0,W,H);
+  }
+  ctx.fillStyle='#28485e'; ctx.beginPath(); ctx.ellipse(SX,SY,W*.27,H*.056,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#38586e'; ctx.beginPath(); ctx.ellipse(SX+W*.055,SY-H*.047,W*.1,H*.04,-.1,0,Math.PI*2); ctx.fill();
+  const hh=ctx.createLinearGradient(SX-W*.27,SY-H*.058,SX-W*.27,SY+H*.058);
+  hh.addColorStop(0,'rgba(190,225,255,.18)'); hh.addColorStop(.5,'rgba(190,225,255,.04)'); hh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=hh; ctx.beginPath(); ctx.ellipse(SX,SY,W*.27,H*.056,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#183050'; ctx.fillRect(SX-W*.27,SY-H*.009,W*.1,H*.012);
+  for(let i=0;i<4;i++){
+    ctx.fillStyle=`rgba(58,115,215,${.5+.3*Math.sin(t+i)})`;
+    ctx.fillRect(SX-W*.265+i*W*.023,SY-H*.008,W*.018,H*.01);
+  }
+  for(let i=0;i<3;i++){
+    ctx.fillStyle='#1a3350'; ctx.beginPath(); ctx.ellipse(SX-W*.21+i*W*.028,SY+H*.037,W*.011,H*.017,.08,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=`rgba(78,188,255,${.75+.25*Math.sin(t*2.2+i)})`; ctx.beginPath(); ctx.arc(SX-W*.21+i*W*.028,SY+H*.047,W*.005,0,Math.PI*2); ctx.fill();
+  }
+  for(let i=0;i<13;i++){
+    const wx=SX-W*.19+i*W*.03;
+    ctx.fillStyle=`rgba(215,238,255,${.5+.5*Math.sin(t*.7+i*.8)})`; ctx.beginPath(); ctx.arc(wx,SY,W*.003,0,Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#284860'; ctx.beginPath(); ctx.arc(SX+W*.19,SY-H*.054,W*.022,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#486880'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(SX+W*.19,SY-H*.054); ctx.lineTo(SX+W*.19,SY-H*.09); ctx.stroke();
+  ctx.font=`${W*.0082}px 'Orbitron',sans-serif`; ctx.textAlign='center';
+  ctx.fillStyle='rgba(115,195,255,.82)'; ctx.fillText('G.S.A.  AURORA',SX,SY+H*.1);
+  ctx.textAlign='left';
+}
+
+function drawScene6(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#0c2240'); bg.addColorStop(1,'#061828');
+  ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+  ctx.strokeStyle='rgba(65,145,225,.18)'; ctx.lineWidth=.8;
+  for(let x=0;x<W;x+=W*.05){ ctx.beginPath(); ctx.moveTo(x,H*.62); ctx.lineTo(W*.5+(x-W*.5)*.25,H); ctx.stroke(); }
+  for(let i=0;i<9;i++){ const y=H*.62+i*H*.045; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+  const fl=ctx.createLinearGradient(0,H*.62,0,H);
+  fl.addColorStop(0,'rgba(70,155,230,.06)'); fl.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=fl; ctx.fillRect(0,H*.62,W,H*.38);
+  ctx.fillStyle='#0c2640'; ctx.fillRect(0,0,W*.1,H*.64); ctx.fillRect(W*.9,0,W*.1,H*.64);
+  for(let i=0;i<4;i++){
+    const py=H*(.12+i*.14),pa=.5+.5*Math.sin(t*1.2+i*1.5);
+    ctx.fillStyle=`rgba(75,165,230,${pa*.65})`;
+    ctx.fillRect(W*.038,py,W*.026,H*.006); ctx.fillRect(W*.936,py,W*.026,H*.006);
+  }
+  const cs=ctx.createLinearGradient(0,0,W,0);
+  cs.addColorStop(0,'rgba(75,155,230,0)'); cs.addColorStop(.5,'rgba(75,155,230,.18)'); cs.addColorStop(1,'rgba(75,155,230,0)');
+  ctx.fillStyle=cs; ctx.fillRect(0,0,W,H*.038);
+  const dw=W*.32,dh=H*.6,dx=(W-dw)/2,dy=H*.06;
+  ctx.fillStyle='#0a2038'; ctx.fillRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  ctx.strokeStyle='rgba(58,135,215,.5)'; ctx.lineWidth=2; ctx.strokeRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  const open=Math.min(1,t/3.2),slide=dw*.5*open;
+  ctx.fillStyle='#0f2840';
+  ctx.fillRect(dx,dy,dw*.5-slide,dh); ctx.fillRect(dx+dw*.5+slide,dy,dw*.5-slide,dh);
+  if(open>0){
+    ctx.save(); ctx.beginPath(); ctx.rect(dx+dw*.5-slide,dy,slide*2,dh); ctx.clip();
+    const ig=ctx.createRadialGradient(W/2,H*.38,0,W/2,H*.38,W*.28);
+    ig.addColorStop(0,`rgba(140,200,255,${open*.55})`); ig.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=ig; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle=`rgba(190,225,255,${open*.07})`; ctx.fillRect(dx+dw*.5-slide,dy,slide*2,dh);
+    if(open>.45){
+      const sa=Math.min(1,(open-.45)/.4);
+      ctx.fillStyle=`rgba(22,65,120,${sa*.88})`;
+      ctx.beginPath(); ctx.ellipse(W/2,H*.52,W*.048,H*.132,0,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(W/2,H*.345,W*.03,0,Math.PI*2); ctx.fill();
+      ctx.save(); ctx.translate(W/2+W*.048,H*.44); ctx.rotate(Math.sin(t*2)*.28-.35);
+      ctx.fillStyle=`rgba(22,65,120,${sa*.88})`; ctx.fillRect(-W*.004,0,W*.009,H*.098); ctx.restore();
+    }
+    ctx.restore();
+  }
+  const gs=.6+.3*Math.sin(t*2.2);
+  ctx.strokeStyle=`rgba(80,170,255,${gs*open})`; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(W/2,dy); ctx.lineTo(W/2,dy+dh); ctx.stroke();
+}
+
+function updateDots(){
+  scenes.forEach((_,i)=>{
+    const d=document.getElementById('sdot-'+i);
+    d.className='scene-dot'+(i<sceneIndex?' done':i===sceneIndex?' active':'');
+  });
+}
+function showScene(index){
+  if(index>=scenes.length){ skipCutscene(); return; }
+  sceneIndex=index;
+  const s=scenes[index];
+  const wipe=document.getElementById('scene-wipe');
+  wipe.classList.add('wipe-in');
+  setTimeout(()=>{
+    const loc=document.getElementById('scene-location');
+    loc.style.opacity='0'; loc.textContent=s.location;
+    const nb=document.getElementById('narration-box');
+    nb.classList.remove('visible');
+    document.getElementById('narration-speaker').textContent=s.speaker;
+    document.getElementById('narration-text').textContent=s.text;
+    if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+    const t0=performance.now();
+    function loop(ts){
+      const t=(ts-t0)/1000;
+      ctx.clearRect(0,0,sceneCanvas.width,sceneCanvas.height);
+      s.draw(t); sceneAnimFrame=requestAnimationFrame(loop);
+    }
+    sceneAnimFrame=requestAnimationFrame(loop);
+    wipe.classList.remove('wipe-in'); wipe.classList.add('wipe-out');
+    setTimeout(()=>wipe.classList.remove('wipe-out'),540);
+    setTimeout(()=>{ loc.style.opacity='1'; nb.classList.add('visible'); },400);
+    updateDots();
+    if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+    sceneAutoTimer=setTimeout(()=>nextScene(),s.duration);
+  },460);
+}
+function nextScene(){ if(sceneAutoTimer) clearTimeout(sceneAutoTimer); showScene(sceneIndex+1); }
+function skipCutscene(){
+  if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+  if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+  const c=document.getElementById('cutscene');
+  c.style.transition='opacity 1s ease'; c.style.opacity='0';
+  document.getElementById('intro-overlay').style.display='flex';
+  setTimeout(()=>{ c.style.display='none'; },1000);
+}
+window.addEventListener('load',()=>showScene(0));
+
+function startGame(){
+  const o=document.getElementById('intro-overlay');
+  o.style.transition='opacity 1s ease'; o.style.opacity='0';
+  setTimeout(()=>{ o.style.display='none'; },1000);
+  gameStarted=true;
+}
+</script>
+</body>
+</html>
