@@ -19,9 +19,11 @@
   const REPO = "REPO";
 
   // jsDelivr base URL for raw file delivery
-  const CDN   = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}`;
-  // jsDelivr package data API — returns full repository file tree
-  const PKG   = `https://data.jsdelivr.com/v1/package/gh/${USER}/${REPO}`;
+  const CDN    = `https://cdn.jsdelivr.net/gh/${USER}/${REPO}`;
+  // GitHub Trees API — always real-time, no CDN caching, free for public repos.
+  // Returns the full repo tree in a single request via ?recursive=1.
+  // Unlike jsDelivr's data API, this reflects pushes immediately.
+  const GITHUB = `https://api.github.com/repos/${USER}/${REPO}/git/trees/HEAD?recursive=1`;
 
   // ─── Internal Cache ───────────────────────────────────────────────────────────
   // Populated once on the first load() call; all subsequent calls reuse this.
@@ -30,65 +32,44 @@
   // ─── Private Helpers ──────────────────────────────────────────────────────────
 
   /**
-   * Recursively collect all .html file paths from a jsDelivr tree node.
-   * jsDelivr's /package API returns { type, name, files[] } trees.
-   * @param {Object} node  - A node from the jsDelivr file tree
-   * @param {string} prefix - Current accumulated path prefix
-   * @returns {string[]} Flat list of html file paths (e.g. "/v0.X.X/v0.1.X/v0.1.9.html")
-   */
-  function collectHtml(node, prefix = "") {
-    if (!node) return [];
-    // Leaf file node
-    if (node.type === "file") {
-      return node.name.endsWith(".html") ? [`${prefix}/${node.name}`] : [];
-    }
-    // Directory node — recurse into children
-    if (node.type === "directory" && Array.isArray(node.files)) {
-      const dir = `${prefix}/${node.name}`;
-      return node.files.flatMap(child => collectHtml(child, dir));
-    }
-    return [];
-  }
-
-  /**
-   * Parse a jsDelivr file tree response and return categorised version lists.
-   * Standard builds live under /v0.X.X/**\/vMAJOR.MINOR.PATCH.html
-   * Chromebook builds live under /chromebook/*-cb.html
-   * @param {Object} tree - jsDelivr package tree root
+   * Parse a GitHub Trees API response into categorised version lists.
+   *
+   * The GitHub Trees API (with ?recursive=1) returns a flat array of every
+   * file and folder in the repo, each as { path, type, sha, ... }.
+   * We filter that flat list by path pattern rather than walking a tree:
+   *
+   *   Standard builds  → v0.X.X/v0.N.X/vMAJOR.MINOR.PATCH.html
+   *   Chromebook builds → chromebook/VERSION-cb.html
+   *
+   * This is simpler, faster, and always up-to-date because the GitHub API
+   * is not cached by a CDN.
+   *
+   * @param {Object} data - Parsed JSON from the GitHub Trees API
    * @returns {{ standard: string[], chromebook: string[] }}
    */
-  function parseTree(tree) {
+  function parseTree(data) {
     const standard   = [];
     const chromebook = [];
 
-    // Top-level entries: "v0.X.X" (container), "chromebook", "api", "index.html", etc.
-    const roots = tree.files || [];
+    // data.tree is a flat array of every path in the repo
+    const items = data.tree || [];
 
-    roots.forEach(root => {
-      if (root.type !== "directory") return;
+    items.forEach(item => {
+      if (item.type !== "blob") return; // skip directories
 
-      if (root.name === "chromebook") {
-        // Collect -cb.html files directly inside /chromebook/
-        collectHtml(root, "").forEach(path => {
-          const match = path.match(/\/([^/]+-cb\.html)$/);
-          if (match) chromebook.push(match[1].replace(".html", ""));
-        });
+      const path = item.path || "";
 
-      } else if (root.name === "v0.X.X") {
-        // The top-level container is literally named "v0.X.X".
-        // Its children are the minor-series directories: v0.1.X, v0.2.X, v0.3.X, etc.
-        // We recurse into each one that matches the minor-series pattern.
-        const seriesDirs = root.files || [];
-        seriesDirs.forEach(series => {
-          if (series.type !== "directory") return;
-          if (!/^v0\.\d+\.X$/.test(series.name)) return;
+      // Standard build: v0.X.X/v0.N.X/vMAJOR.MINOR.PATCH.html
+      const stdMatch = path.match(/^v0\.X\.X\/v\d+\.\d+\.X\/(v\d+\.\d+\.\d+)\.html$/);
+      if (stdMatch) {
+        standard.push(stdMatch[1]);
+        return;
+      }
 
-          // Collect all versioned .html files within this minor-series folder
-          collectHtml(series, "").forEach(path => {
-            const match = path.match(/\/(v\d+\.\d+\.\d+)\.html$/);
-            if (match) standard.push(match[1]);
-          });
-        });
+      // Chromebook build: chromebook/VERSION-cb.html
+      const cbMatch = path.match(/^chromebook\/([^/]+-cb)\.html$/);
+      if (cbMatch) {
+        chromebook.push(cbMatch[1]);
       }
     });
 
@@ -115,8 +96,9 @@
 
     /**
      * load()
-     * Scans the repository file tree via jsDelivr's data API and fetches badge
-     * metadata from /api/badges.json. Results are cached after the first call.
+     * Scans the repository file tree via the GitHub Trees API (always real-time)
+     * and fetches badge metadata from /api/badges.json via jsDelivr CDN.
+     * Results are cached after the first call.
      *
      * Must be awaited before using any other method.
      *
@@ -128,17 +110,19 @@
     async load() {
       if (_cache) return; // Already loaded — use the cache
 
-      // Fetch the repository file tree and badges concurrently
+      // Fetch the GitHub file tree and badges concurrently.
+      // The GitHub Trees API is always real-time — no CDN cache to wait on.
+      // badges.json is still served via jsDelivr CDN (small file, rarely changes).
       const [treeRes, badgesRes] = await Promise.all([
-        fetch(PKG).catch(() => null),
+        fetch(GITHUB, { headers: { Accept: "application/vnd.github+json" } }).catch(() => null),
         fetch(`${CDN}/api/badges.json`).catch(() => null)
       ]);
 
       // Parse file tree — fall back to empty lists on failure
       let standard = [], chromebook = [];
       if (treeRes && treeRes.ok) {
-        const tree = await treeRes.json().catch(() => ({}));
-        ({ standard, chromebook } = parseTree(tree));
+        const data = await treeRes.json().catch(() => ({}));
+        ({ standard, chromebook } = parseTree(data));
       }
 
       // Parse badges — fall back to empty object on failure
