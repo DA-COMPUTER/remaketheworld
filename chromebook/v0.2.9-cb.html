@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Remake the World — CB Edition</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#040c18;color:#fff;font-family:'Inter',sans-serif;overflow:hidden;height:100vh;display:flex;flex-direction:column;}
+
+/* ── INTRO OVERLAY ──────────────────────────────────────────────── */
+#intro{position:fixed;inset:0;background:#010408;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+.intro-title{font-family:'Orbitron',sans-serif;font-size:clamp(1.2rem,4vw,2.4rem);font-weight:900;letter-spacing:.18em;color:#a8d4f5;text-shadow:0 0 30px rgba(80,160,240,.4);}
+.intro-sub{font-size:.72rem;color:rgba(140,190,235,.45);letter-spacing:.22em;}
+.intro-story{max-width:560px;text-align:center;font-size:.78rem;line-height:1.85;color:rgba(170,210,245,.7);font-weight:300;}
+.intro-btns{display:flex;gap:12px;margin-top:8px;}
+.intro-btn{font-family:'Orbitron',sans-serif;font-size:.68rem;letter-spacing:.16em;padding:11px 28px;border-radius:5px;cursor:pointer;border:1px solid rgba(80,160,240,.45);background:rgba(20,60,130,.2);color:#a8d4f5;transition:all .2s;}
+.intro-btn:hover{background:rgba(40,100,200,.35);}
+.intro-badge{font-size:.55rem;letter-spacing:.2em;color:rgba(100,160,220,.45);margin-top:4px;}
+
+/* ── OPENING CUTSCENE ────────────────────────────────────────────── */
+#cutscene{position:fixed;inset:0;background:#000;z-index:220;overflow:hidden;}
+#cutscene::before,#cutscene::after{content:'';position:absolute;left:0;right:0;height:11vh;background:#000;z-index:10;}
+#cutscene::before{top:0;}#cutscene::after{bottom:0;}
+#scene-canvas{width:100vw;height:100vh;display:block;}
+#cutscene-ui{position:absolute;inset:0;z-index:20;pointer-events:none;}
+#scene-location{position:absolute;top:13vh;left:50%;transform:translateX(-50%);font-size:.68rem;letter-spacing:.24em;color:rgba(130,195,250,.75);font-weight:300;opacity:0;transition:opacity .8s ease;white-space:nowrap;}
+#narration-box{position:absolute;bottom:13vh;left:50%;transform:translateX(-50%);width:min(660px,86vw);text-align:center;}
+#narration-speaker{font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.22em;color:#5aaeff;margin-bottom:9px;opacity:0;transition:opacity .5s ease .3s;text-transform:uppercase;}
+#narration-text{font-size:.88rem;line-height:1.8;color:#cce4ff;font-weight:300;opacity:0;transition:opacity .7s ease .5s;min-height:3em;}
+#narration-box.visible #narration-speaker,#narration-box.visible #narration-text{opacity:1;}
+#scene-continue{position:absolute;bottom:calc(13vh - 26px);right:36px;font-size:.62rem;letter-spacing:.15em;color:rgba(100,180,240,.4);animation:blink 1.4s ease-in-out infinite;pointer-events:all;cursor:pointer;}
+#scene-skip{position:absolute;top:13vh;right:22px;font-size:.62rem;letter-spacing:.14em;color:rgba(255,255,255,.18);cursor:pointer;pointer-events:all;padding:5px 10px;border:1px solid rgba(255,255,255,.1);border-radius:3px;transition:all .2s;}
+#scene-skip:hover{color:rgba(255,255,255,.5);border-color:rgba(255,255,255,.26);}
+#scene-progress{position:absolute;bottom:calc(13vh - 8px);left:50%;transform:translateX(-50%);display:flex;gap:7px;}
+.scene-dot{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,.12);transition:background .4s;}
+.scene-dot.active{background:#5aaeff;box-shadow:0 0 6px #5aaeff;}
+.scene-dot.done{background:rgba(100,175,250,.3);}
+#scene-wipe{position:absolute;inset:0;background:#000;z-index:15;opacity:0;pointer-events:none;transition:opacity .45s ease;}
+#scene-wipe.wipe-in{opacity:1;}#scene-wipe.wipe-out{opacity:0;}
+
+/* ── INTRO TITLE (shown after cutscene) ──────────────────────────── */
+#intro-overlay{position:fixed;inset:0;background:#030c1c;z-index:210;display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 1s ease;}
+#intro-overlay h1{font-family:'Orbitron',sans-serif;font-size:clamp(1.8rem,4vw,3rem);font-weight:900;color:#b8d8f8;letter-spacing:.2em;text-align:center;text-shadow:0 0 50px rgba(80,160,240,.4);}
+#intro-overlay p{font-size:.78rem;font-weight:300;color:rgba(130,190,240,.6);letter-spacing:.18em;}
+#start-btn{padding:12px 40px;border-radius:4px;font-family:'Orbitron',sans-serif;letter-spacing:.2em;cursor:pointer;pointer-events:all;transition:all .25s;outline:none;white-space:nowrap;display:block;background:rgba(40,110,200,.22);border:1px solid rgba(80,160,255,.55);color:#b8d8f8;font-size:.75rem;}
+#start-btn:hover{background:rgba(40,110,200,.38);box-shadow:0 0 24px rgba(80,160,240,.22);}
+#intro-overlay .btn-secondary{padding:12px 40px;border-radius:4px;font-family:'Orbitron',sans-serif;letter-spacing:.2em;cursor:pointer;outline:none;white-space:nowrap;display:block;background:transparent;border:1px solid rgba(60,90,140,.35);color:rgba(140,180,230,.6);font-size:.62rem;transition:all .2s;}
+#intro-overlay .btn-secondary:hover{border-color:rgba(90,140,210,.55);color:rgba(180,210,255,.8);}
+
+/* ── TUTORIAL CARD ───────────────────────────────────────────────── */
+#tutorial-card{position:fixed;top:22px;left:50%;transform:translateX(-50%);z-index:55;width:520px;max-width:calc(100vw - 32px);background:rgba(4,14,30,.97);border:1px solid rgba(80,160,240,.45);border-radius:12px;padding:20px 24px 16px;box-shadow:0 0 32px rgba(40,120,240,.25),0 8px 32px rgba(0,0,0,.6);display:none;flex-direction:column;gap:10px;pointer-events:all;}
+#tutorial-card.show{display:flex;}
+.tut-header{display:flex;align-items:center;gap:12px;}
+.tut-icon{font-size:1.6rem;flex-shrink:0;}
+.tut-step-label{font-family:'Orbitron',sans-serif;font-size:.44rem;letter-spacing:.28em;color:rgba(80,180,255,.55);}
+.tut-title{font-family:'Orbitron',sans-serif;font-size:.78rem;font-weight:700;letter-spacing:.14em;color:#c8e8ff;}
+.tut-text{font-size:.76rem;font-weight:300;color:rgba(160,200,240,.8);line-height:1.75;}
+.tut-condition{font-size:.66rem;font-family:'Orbitron',sans-serif;letter-spacing:.1em;color:rgba(100,220,140,.7);padding:7px 12px;background:rgba(40,120,60,.12);border:1px solid rgba(80,200,100,.2);border-radius:6px;display:none;}
+.tut-condition.show{display:block;}
+.tut-condition::before{content:'▶ ';opacity:.7;}
+.tut-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;flex-wrap:wrap;}
+.tut-dots{display:flex;gap:5px;}
+.tut-dot{width:7px;height:7px;border-radius:50%;background:rgba(80,140,220,.25);transition:background .3s;}
+.tut-dot.active{background:#5aaeff;box-shadow:0 0 6px #5aaeff88;}
+.tut-dot.done{background:rgba(80,200,120,.5);}
+.tut-btn{font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.16em;padding:7px 18px;border-radius:4px;cursor:pointer;border:1px solid;transition:all .18s;}
+.tut-btn-primary{background:rgba(40,110,200,.2);border-color:rgba(80,160,240,.5);color:#a8d4f5;}
+.tut-btn-primary:hover{background:rgba(40,110,200,.35);}
+.tut-btn-skip{background:transparent;border-color:rgba(80,100,140,.25);color:rgba(120,150,190,.5);font-size:.46rem;white-space:nowrap;flex-shrink:0;}
+.tut-btn-skip:hover{color:rgba(180,190,210,.6);border-color:rgba(120,150,190,.4);}
+
+/* ── PLANET HEALING CUTSCENE ─────────────────────────────────────── */
+#ps-narration.visible #ps-speaker,#ps-narration.visible 
+@keyframes blink{0%,100%{opacity:.35}50%{opacity:.9}}
+
+/* ── TOP BAR ─────────────────────────────────────────────────────── */
+#top-bar{background:#06111e;border-bottom:1px solid rgba(40,90,160,.4);padding:0 14px;height:46px;display:flex;align-items:center;gap:12px;flex-shrink:0;z-index:10;}
+#game-title{font-family:'Orbitron',sans-serif;font-size:.72rem;font-weight:700;letter-spacing:.18em;color:#a8d4f5;}
+#top-bar .sep{color:rgba(60,100,160,.4);margin:0 2px;}
+#xp-display{font-family:'Orbitron',sans-serif;font-size:.6rem;color:#ffdd88;letter-spacing:.12em;}
+#progress-container{flex:1;max-width:220px;}
+#progress-track{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+#progress-fill{height:100%;background:linear-gradient(90deg,#3a8ee8,#88eebb);width:0%;transition:width .6s;}
+#progress-label{font-size:.45rem;color:rgba(120,180,230,.4);letter-spacing:.1em;margin-top:3px;font-family:'Orbitron',sans-serif;}
+.top-spacer{flex:1;}
+.top-btn{font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.12em;padding:6px 12px;border-radius:4px;cursor:pointer;border:1px solid rgba(80,160,240,.3);background:transparent;color:rgba(140,190,235,.7);transition:all .15s;white-space:nowrap;}
+.top-btn:hover{background:rgba(40,100,200,.2);color:#a8d4f5;}
+.top-btn.active-btn{border-color:rgba(80,200,100,.5);color:#88ffaa;}
+#overdrive-badge{font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.14em;padding:4px 9px;border-radius:3px;background:rgba(255,140,20,.12);border:1px solid rgba(255,140,20,.4);color:#ffaa44;display:none;}
+#overdrive-badge.show{display:block;}
+
+/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */
+#game-main{display:flex;flex:1;overflow:hidden;gap:1px;background:rgba(20,40,80,.15);}
+
+/* ── LEFT PANEL — Inventory ─────────────────────────────────────── */
+#panel-left{width:200px;flex-shrink:0;background:#05101c;display:flex;flex-direction:column;border-right:1px solid rgba(30,70,140,.35);}
+.panel-hdr{font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.18em;padding:8px 12px 6px;color:rgba(100,160,220,.55);border-bottom:1px solid rgba(30,70,140,.3);background:#040e1a;flex-shrink:0;}
+.panel-body{flex:1;overflow-y:auto;padding:6px 8px;}
+.panel-body::-webkit-scrollbar{width:3px;}
+.panel-body::-webkit-scrollbar-thumb{background:rgba(60,120,200,.25);border-radius:2px;}
+.inv-tier-lbl{font-family:'Orbitron',sans-serif;font-size:.42rem;letter-spacing:.14em;padding:5px 4px 3px;opacity:.7;margin-top:4px;}
+.inv-item{display:flex;align-items:center;gap:6px;padding:4px 5px;border-radius:3px;font-size:.68rem;}
+.inv-item:hover{background:rgba(40,80,160,.08);}
+.inv-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.inv-name{flex:1;font-weight:300;color:#b8d4f0;font-size:.66rem;line-height:1.2;}
+.inv-qty{font-family:'Orbitron',sans-serif;font-size:.6rem;color:rgba(140,200,240,.7);}
+#inv-empty{padding:14px 8px;font-size:.65rem;color:rgba(80,120,180,.4);line-height:1.8;font-weight:300;}
+
+/* Supply rate indicators */
+#supply-status{padding:7px 8px 4px;border-bottom:1px solid rgba(30,70,140,.3);flex-shrink:0;}
+.supply-hdr{font-family:'Orbitron',sans-serif;font-size:.4rem;letter-spacing:.14em;color:rgba(80,140,200,.45);margin-bottom:5px;}
+.supply-row{display:flex;justify-content:space-between;align-items:center;padding:2px 0;}
+.supply-name{font-size:.58rem;color:rgba(150,195,235,.6);font-weight:300;}
+.supply-rate{font-family:'Orbitron',sans-serif;font-size:.48rem;color:rgba(100,200,120,.6);}
+
+/* ── CENTER PANEL — Synthesiser ─────────────────────────────────── */
+#panel-center{flex:1;background:#050f1c;display:flex;flex-direction:column;min-width:0;}
+.synth-body{flex:1;overflow-y:auto;padding:14px 16px;}
+.synth-body::-webkit-scrollbar{width:3px;}
+.synth-body::-webkit-scrollbar-thumb{background:rgba(60,120,200,.2);border-radius:2px;}
+#synth-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:10px;color:rgba(80,130,200,.4);}
+.synth-empty-icon{font-size:2.5rem;opacity:.35;}
+.synth-empty-text{font-size:.7rem;text-align:center;line-height:1.7;font-weight:300;}
+.synth-recipe-name{font-family:'Orbitron',sans-serif;font-size:.82rem;font-weight:700;letter-spacing:.12em;margin-bottom:3px;}
+.synth-recipe-tier{font-size:.55rem;letter-spacing:.18em;opacity:.6;margin-bottom:8px;font-family:'Orbitron',sans-serif;}
+.synth-recipe-desc{font-size:.7rem;color:rgba(170,205,240,.65);line-height:1.65;font-weight:300;margin-bottom:12px;}
+.synth-divider{height:1px;background:rgba(60,120,200,.15);margin:10px 0;}
+.synth-ing-title{font-family:'Orbitron',sans-serif;font-size:.45rem;letter-spacing:.18em;color:rgba(100,160,220,.45);margin-bottom:7px;}
+.ing-slot{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:4px;margin-bottom:4px;border:1px solid transparent;}
+.ing-ok{background:rgba(60,200,90,.05);border-color:rgba(60,200,90,.18);}
+.ing-missing{background:rgba(255,60,40,.05);border-color:rgba(255,60,40,.12);}
+.ing-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.ing-name{flex:1;font-size:.7rem;color:#cce4ff;font-weight:300;}
+.ing-need{font-size:.62rem;color:rgba(130,185,225,.4);}
+.ing-have{font-size:.66rem;font-weight:500;}
+.synth-craft-area{margin-top:14px;}
+.synth-prev-badge{font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.12em;color:#55cc88;text-align:center;padding:5px 8px;background:rgba(60,180,90,.07);border-radius:3px;margin-bottom:7px;}
+.synth-btn{width:100%;padding:12px 10px;font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:.18em;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:all .2s;}
+.synth-btn-ready{background:rgba(30,90,190,.2);border-color:rgba(80,160,240,.55);color:#a8d4f5;}
+.synth-btn-ready:hover{background:rgba(40,110,210,.35);}
+.synth-btn-off{background:rgba(14,30,60,.15);border-color:rgba(50,80,120,.2);color:rgba(100,140,180,.25);cursor:not-allowed;}
+@keyframes craftFlash{0%{background:rgba(60,200,90,.22);}60%{background:rgba(60,200,90,.07);}100%{background:transparent;}}
+.synth-flash{animation:craftFlash .5s ease-out;}
+#progress-bar-synth{height:2px;background:rgba(60,120,200,.12);}
+#progress-bar-fill-synth{height:100%;background:linear-gradient(90deg,#3a8ee8,#88eebb);width:0%;transition:width .6s;}
+/* Quantity selector */
+.qty-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.qty-lbl{font-family:'Orbitron',sans-serif;font-size:.45rem;letter-spacing:.14em;color:rgba(100,160,220,.45);}
+.qty-btn{font-family:'Orbitron',sans-serif;font-size:.52rem;padding:4px 8px;border-radius:3px;cursor:pointer;border:1px solid rgba(60,120,200,.3);background:transparent;color:rgba(140,190,240,.7);transition:all .15s;}
+.qty-btn:hover{background:rgba(40,100,200,.15);}
+.qty-btn.active-qty{border-color:rgba(80,160,240,.7);background:rgba(40,100,200,.25);color:#a8d4f5;}
+/* Auto-craft indicator */
+
+/* ── RIGHT PANEL — Recipe Codex ─────────────────────────────────── */
+#panel-right{width:210px;flex-shrink:0;background:#05101c;display:flex;flex-direction:column;border-left:1px solid rgba(30,70,140,.35);}
+.codex-tier-lbl{font-family:'Orbitron',sans-serif;font-size:.42rem;letter-spacing:.14em;padding:6px 8px 3px;opacity:.75;}
+.codex-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:3px;margin:1px 4px;cursor:pointer;border:1px solid transparent;transition:background .12s;}
+.codex-item:hover{background:rgba(40,80,160,.08);}
+.codex-selected{background:rgba(50,100,200,.15)!important;border-color:rgba(80,160,240,.35)!important;}
+.codex-crafted .codex-name{color:#7ab898;}
+.codex-status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot-ready{background:#5aaeff;}
+.dot-locked{background:rgba(60,90,130,.3);}
+.codex-name{font-size:.67rem;font-weight:300;color:#a8c8e8;flex:1;line-height:1.3;}
+.codex-check{font-size:.58rem;color:#55cc88;flex-shrink:0;}
+
+/* ── BOTTOM BAR ─────────────────────────────────────────────────── */
+#bottom-bar{background:#040e1c;border-top:1px solid rgba(30,70,140,.35);padding:6px 14px;height:38px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.bottom-btn{font-family:'Orbitron',sans-serif;font-size:.5rem;letter-spacing:.12em;padding:5px 12px;border-radius:3px;cursor:pointer;border:1px solid rgba(60,110,180,.3);background:transparent;color:rgba(120,175,230,.6);transition:all .15s;}
+.bottom-btn:hover{background:rgba(30,80,180,.15);color:#a8d4f5;}
+#craft-ready-badge{display:none;align-items:center;gap:6px;background:rgba(4,14,8,.9);border:1px solid rgba(60,180,80,.3);border-radius:6px;padding:4px 10px;}
+#craft-ready-badge.show{display:flex;}
+@keyframes crhPulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.crh-pulse{width:7px;height:7px;border-radius:50%;background:#44ee88;animation:crhPulse 1.4s infinite;flex-shrink:0;}
+.crh-label{font-family:'Orbitron',sans-serif;font-size:.45rem;letter-spacing:.12em;color:rgba(80,200,100,.8);}
+.crh-count{font-family:'Orbitron',sans-serif;font-size:.9rem;font-weight:700;color:#88ffaa;}
+.crh-name{font-size:.55rem;color:rgba(150,200,170,.55);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.bottom-spacer{flex:1;}
+#tier-display{font-family:'Orbitron',sans-serif;font-size:.5rem;letter-spacing:.12em;color:rgba(120,180,240,.35);}
+
+/* ── MODALS (shared base) ────────────────────────────────────────── */
+.modal-overlay{position:fixed;inset:0;background:rgba(2,6,16,.96);z-index:100;display:none;flex-direction:column;align-items:center;padding:24px 18px 18px;overflow-y:auto;}
+.modal-overlay.open{display:flex;}
+.modal-title{font-family:'Orbitron',sans-serif;font-size:.88rem;font-weight:700;letter-spacing:.2em;color:#a8d4f5;margin-bottom:4px;}
+.modal-sub{font-size:.58rem;color:rgba(120,175,225,.35);letter-spacing:.16em;margin-bottom:16px;}
+.modal-close{position:absolute;top:14px;right:16px;font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.12em;padding:6px 12px;border-radius:4px;cursor:pointer;border:1px solid rgba(80,160,240,.3);background:rgba(5,14,32,.9);color:rgba(140,190,235,.7);transition:all .2s;}
+.modal-close:hover{background:rgba(40,100,200,.2);color:#a8d4f5;}
+.modal-panel{background:rgba(6,16,36,.92);border:1px solid rgba(50,100,180,.25);border-radius:8px;padding:16px 18px;width:100%;max-width:860px;margin-bottom:12px;}
+.modal-panel h3{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:.18em;color:#5aaeff;margin-bottom:10px;}
+
+/* ── GUIDE MODAL ──────────────────────────────────────────────────── */
+.co-tabs{display:flex;gap:4px;width:100%;max-width:860px;border-bottom:1px solid rgba(60,100,180,.18);margin-bottom:0;}
+.co-tab{font-family:'Orbitron',sans-serif;font-size:.55rem;letter-spacing:.14em;padding:7px 16px 8px;cursor:pointer;color:rgba(100,160,230,.4);border:1px solid transparent;border-bottom:none;border-radius:4px 4px 0 0;transition:all .15s;background:transparent;}
+.co-tab:hover{color:rgba(150,200,255,.7);}
+.co-tab.active{color:#a8d4f5;border-color:rgba(60,110,190,.28);background:rgba(6,16,36,.92);}
+.co-tab-content{display:none;width:100%;max-width:860px;}
+.co-tab-content.active{display:block;}
+.guide-scroll{max-height:60vh;overflow-y:auto;padding-right:4px;}
+.guide-scroll::-webkit-scrollbar{width:3px;}
+.guide-scroll::-webkit-scrollbar-thumb{background:rgba(60,120,200,.2);border-radius:2px;}
+.guide-entry{display:grid;grid-template-columns:1fr auto;gap:3px 10px;padding:7px 9px;border-radius:4px;margin-bottom:3px;background:rgba(6,18,38,.6);border:1px solid rgba(60,110,180,.1);align-items:start;}
+.guide-entry-name{font-size:.72rem;color:#c8e0ff;font-weight:400;line-height:1.4;}
+.guide-tier-badge{font-size:.5rem;font-family:'Orbitron',sans-serif;letter-spacing:.08em;padding:2px 6px;border-radius:2px;white-space:nowrap;margin-top:2px;}
+.guide-entry-ing{font-size:.6rem;color:rgba(90,150,210,.55);grid-column:1/-1;line-height:1.5;font-weight:300;margin-top:2px;}
+
+/* ── STATS MODAL ─────────────────────────────────────────────────── */
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;width:100%;max-width:860px;margin-bottom:12px;}
+.stat-card{background:rgba(6,18,42,.9);border:1px solid rgba(60,110,190,.2);border-radius:7px;padding:14px 16px;}
+.stat-card-label{font-family:'Orbitron',sans-serif;font-size:.47rem;letter-spacing:.18em;color:rgba(90,150,215,.5);margin-bottom:7px;}
+.stat-card-value{font-family:'Orbitron',sans-serif;font-size:1.6rem;font-weight:700;color:#a8d4f5;line-height:1;}
+.stat-card-sub{font-size:.6rem;color:rgba(110,170,225,.4);margin-top:4px;font-weight:300;}
+.tier-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.tier-bar-label{font-size:.62rem;color:#9ab8d8;width:165px;flex-shrink:0;font-weight:300;}
+.tier-bar-track{flex:1;height:6px;background:rgba(255,255,255,.05);border-radius:3px;overflow:hidden;}
+.tier-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+.tier-bar-count{font-size:.6rem;color:rgba(110,170,225,.5);width:40px;text-align:right;font-family:'Orbitron',sans-serif;}
+.stats-subtabs{display:flex;border-bottom:1px solid rgba(60,110,180,.2);margin-bottom:12px;width:100%;max-width:860px;}
+.stats-subtab{font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.18em;color:rgba(110,160,215,.4);padding:7px 20px;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+.stats-subtab.active{color:#a8d4f5;border-bottom-color:#5aaeff;}
+.stats-subtab:hover{color:rgba(150,200,255,.7);}
+#ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;max-height:50vh;overflow-y:auto;padding-right:3px;width:100%;max-width:860px;}
+#ach-grid::-webkit-scrollbar{width:3px;}
+#ach-grid::-webkit-scrollbar-thumb{background:rgba(60,120,200,.2);}
+.ach-card{display:flex;align-items:flex-start;gap:9px;padding:9px 11px;border-radius:7px;}
+.ach-card-icon{font-size:1.25rem;flex-shrink:0;}
+.ach-card-body{flex:1;min-width:0;}
+.ach-card-title{font-family:'Orbitron',sans-serif;font-size:.5rem;font-weight:700;letter-spacing:.08em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ach-card-desc{font-size:.6rem;font-weight:300;line-height:1.4;margin-top:2px;}
+.ach-card-xp{font-family:'Orbitron',sans-serif;font-size:.47rem;letter-spacing:.12em;margin-top:3px;}
+
+/* ── EXCHANGE POINT MODAL ────────────────────────────────────────── */
+.ep-xp-row{display:flex;align-items:center;gap:14px;background:rgba(255,200,60,.05);border:1px solid rgba(200,160,40,.18);border-radius:7px;padding:9px 15px;width:100%;max-width:860px;margin-bottom:14px;}
+.ep-xp-lbl{font-family:'Orbitron',sans-serif;font-size:.45rem;letter-spacing:.18em;color:rgba(220,180,70,.5);}
+.ep-xp-val{font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:700;color:#ffdd88;line-height:1;}
+.ep-xp-note{font-size:.6rem;color:rgba(190,150,50,.45);margin-left:auto;}
+.ep-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:860px;}
+.ep-card{background:rgba(255,200,60,.03);border:1px solid rgba(180,140,35,.16);border-radius:9px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:all .18s;position:relative;}
+.ep-card:hover:not(.cant-afford):not(.ep-owned){background:rgba(255,200,60,.09);border-color:rgba(255,200,60,.4);}
+.ep-card.cant-afford{opacity:.4;cursor:not-allowed;}
+.ep-owned-badge{position:absolute;top:7px;right:7px;font-size:.42rem;font-family:'Orbitron',sans-serif;letter-spacing:.08em;color:rgba(80,210,100,.7);background:rgba(30,150,60,.1);border:1px solid rgba(60,180,80,.22);border-radius:2px;padding:2px 5px;}
+.ep-icon{font-size:1.6rem;line-height:1;}
+.ep-name{font-family:'Orbitron',sans-serif;font-size:.56rem;font-weight:700;letter-spacing:.09em;color:#ffeeaa;}
+.ep-desc{font-size:.6rem;color:rgba(195,170,120,.65);line-height:1.5;font-weight:300;flex:1;}
+.ep-cost{font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.1em;color:rgba(235,190,55,.7);border-top:1px solid rgba(255,200,60,.1);padding-top:6px;margin-top:auto;}
+
+/* ── VOSS CHAT MODAL ─────────────────────────────────────────────── */
+/* ── ACHIEVEMENT POPUPS ──────────────────────────────────────────── */
+#achievement-container{position:fixed;top:56px;right:14px;z-index:160;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:280px;}
+.achievement-popup{background:rgba(6,18,10,.97);border:1px solid rgba(70,185,90,.42);border-radius:9px;padding:10px 13px;display:flex;align-items:center;gap:10px;transform:translateX(310px);opacity:0;transition:transform .35s cubic-bezier(.2,.8,.3,1),opacity .35s;}
+.achievement-popup.show{transform:translateX(0);opacity:1;}
+.achievement-popup.hide{transform:translateX(310px);opacity:0;}
+.ach-icon{font-size:1.5rem;flex-shrink:0;}
+.ach-body{display:flex;flex-direction:column;gap:2px;overflow:hidden;}
+.ach-label{font-family:'Orbitron',sans-serif;font-size:.43rem;letter-spacing:.18em;color:rgba(80,210,110,.65);}
+.ach-title{font-family:'Orbitron',sans-serif;font-size:.6rem;font-weight:700;letter-spacing:.08em;color:#aaffbb;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ach-desc{font-size:.6rem;color:rgba(160,220,170,.58);font-weight:300;line-height:1.4;}
+.ach-xp{font-family:'Orbitron',sans-serif;font-size:.46rem;letter-spacing:.12em;color:rgba(70,210,90,.5);margin-top:1px;}
+
+/* ── ENDGAME OVERLAY ─────────────────────────────────────────────── */
+#endgame-overlay{position:fixed;inset:0;background:#000;z-index:220;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;overflow:hidden;}
+#endgame-overlay.show{display:flex;}
+#eg-canvas{position:absolute;inset:0;width:100%;height:100%;}
+#eg-ui{position:relative;z-index:5;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none;}
+#eg-stamp{font-family:'Orbitron',sans-serif;font-size:.58rem;letter-spacing:.38em;color:rgba(90,210,130,.65);}
+#eg-title{font-family:'Orbitron',sans-serif;font-size:clamp(2rem,5vw,4rem);font-weight:900;letter-spacing:.14em;color:#fff;}
+#eg-subtitle{font-size:.78rem;color:rgba(180,225,200,.7);max-width:480px;line-height:1.75;font-weight:300;}
+.eg-npc-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:600px;}
+.eg-npc-msg{background:rgba(4,16,32,.88);border:1px solid rgba(60,120,200,.25);border-radius:6px;padding:7px 12px;font-size:.62rem;color:#c8e4ff;display:flex;align-items:center;gap:7px;}
+.eg-npc-icon{font-size:.9rem;}
+.eg-npc-name{font-family:'Orbitron',sans-serif;font-size:.42rem;color:#5aaeff;letter-spacing:.1em;}
+#eg-xp-display{font-family:'Orbitron',sans-serif;font-size:.62rem;color:#ffdd88;letter-spacing:.18em;}
+#eg-continue{pointer-events:all;font-family:'Orbitron',sans-serif;font-size:.65rem;letter-spacing:.16em;padding:10px 26px;border-radius:5px;cursor:pointer;border:1px solid rgba(80,160,240,.4);background:rgba(20,60,140,.25);color:#a8d4f5;transition:all .2s;margin-top:6px;}
+#eg-continue:hover{background:rgba(40,100,220,.35);}
+
+/* CHNOPS */
+#chnops-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.97);display:none;flex-direction:column;align-items:center;justify-content:center;gap:18px;}
+#chnops-overlay.open{display:flex;}
+.chnops-title{font-family:'Orbitron',sans-serif;font-size:1.4rem;font-weight:900;letter-spacing:.2em;color:#88eebb;}
+.chnops-sub{font-size:.7rem;color:rgba(150,205,240,.5);max-width:420px;text-align:center;line-height:1.7;font-weight:300;}
+#chnops-input{font-family:'Orbitron',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.18em;text-align:center;background:rgba(6,20,44,.9);border:1px solid rgba(70,170,230,.32);border-radius:7px;color:#88eebb;padding:12px 20px;width:260px;outline:none;}
+@keyframes chnopsShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(7px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+#chnops-input.shake{animation:chnopsShake .4s ease;border-color:rgba(240,60,60,.6)!important;}
+#chnops-feedback{font-size:.66rem;min-height:1.2em;color:rgba(240,100,70,.8);font-weight:300;}
+#chnops-feedback.success{color:#88eebb;}
+.chnops-close-btn{position:absolute;top:18px;right:22px;font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.16em;color:rgba(70,130,190,.4);background:none;border:none;cursor:pointer;padding:5px 8px;transition:color .2s;}
+.chnops-close-btn:hover{color:rgba(110,170,235,.65);}
+
+/* ── COUNCIL MODAL ───────────────────────────────────────────────── */
+.cdlg-nav-btn{font-family:'Orbitron',sans-serif;font-size:.5rem;letter-spacing:.1em;padding:7px 12px;border-radius:4px;cursor:pointer;border:1px solid rgba(60,150,80,.3);background:rgba(8,32,14,.6);color:rgba(130,220,150,.7);transition:all .15s;}
+.cdlg-nav-btn:hover{background:rgba(16,60,24,.5);color:#a0e8b0;}
+.cdlg-nav-btn:disabled{opacity:.3;cursor:default;}
+.council-npc-card{background:rgba(4,16,8,.9);border:1px solid rgba(50,140,70,.25);border-radius:8px;padding:14px 12px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;align-items:center;gap:7px;text-align:center;}
+.council-npc-card:hover{background:rgba(10,36,16,.9);border-color:rgba(80,200,100,.45);transform:translateY(-2px);}
+.council-npc-card.active-card{background:rgba(12,44,18,.9);border-color:rgba(80,200,100,.6);}
+.cnpc-emoji{font-size:2rem;line-height:1;}
+.cnpc-name{font-family:'Orbitron',sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.1em;color:#a0e8b0;}
+.cnpc-title{font-size:.55rem;color:rgba(100,190,120,.5);line-height:1.4;font-weight:300;}
+
+/* ── SCIENCE MODEL CARDS ─────────────────────────────────────────── */
+</style>
+</head>
+<body>
+
+<!-- OPENING CUTSCENE -->
+<div id="cutscene">
+  <canvas id="scene-canvas"></canvas>
+  <div id="scene-wipe"></div>
+  <div id="cutscene-ui">
+    <div id="scene-location"></div>
+    <div id="narration-box">
+      <div id="narration-speaker"></div>
+      <div id="narration-text"></div>
+    </div>
+    <div id="scene-continue" onclick="nextScene()">CLICK TO CONTINUE ▶</div>
+    <div id="scene-skip" onclick="skipCutscene()">SKIP ▶▶</div>
+    <div id="scene-progress"></div>
+  </div>
+</div>
+
+<!-- TITLE OVERLAY (shown after cutscene) -->
+<div id="intro-overlay">
+  <h1>REMAKE THE WORLD</h1>
+  <p>GALACTIC SCIENCE ADMINISTRATION — RESEARCH VESSEL AURORA</p>
+  <p style="color:rgba(130,190,240,.38);font-size:.72rem;">WELCOME, SCIENTIST. YOUR MISSION AWAITS.</p>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:center;margin-top:8px;">
+    <button id="start-btn" onclick="startGame(true)">▶ BEGIN MISSION WITH TUTORIAL</button>
+    <button class="btn-secondary" onclick="startGame(false)">SKIP TUTORIAL — ENTER DIRECTLY</button>
+  </div>
+</div>
+
+<!-- TUTORIAL CARD -->
+<div id="tutorial-card">
+  <div class="tut-header">
+    <div class="tut-icon" id="tut-icon">🚀</div>
+    <div>
+      <div class="tut-step-label" id="tut-step-label">STEP 1 OF 5</div>
+      <div class="tut-title" id="tut-title">WELCOME TO AURORA</div>
+    </div>
+  </div>
+  <div class="tut-text" id="tut-text">Loading...</div>
+  <div class="tut-condition" id="tut-condition">Waiting...</div>
+  <div class="tut-footer">
+    <div class="tut-dots" id="tut-dots"></div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="tut-btn tut-btn-skip" onclick="skipTutorial()">SKIP TUTORIAL</button>
+      <button class="tut-btn tut-btn-primary" id="tut-ok-btn" onclick="tutorialNext()" style="display:none;">OK →</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MAIN GAME -->
+<div id="main-game" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+
+<!-- TOP BAR -->
+<div id="top-bar">
+  <div id="game-title">REMAKE THE WORLD</div>
+  <span class="sep">·</span>
+  <div id="xp-display">XP: <span id="xp-val">0</span></div>
+  <span class="sep">·</span>
+  <div id="progress-container">
+    <div id="progress-track"><div id="progress-fill"></div></div>
+    <div id="progress-label">0 / 47 SYNTHESISED</div>
+  </div>
+  <div id="overdrive-badge">⚡ OVERDRIVE</div>
+  <div class="top-spacer"></div>
+  <button class="top-btn" onclick="openGuide()">📋 GUIDE</button>
+  <button class="top-btn" onclick="openStats()">📊 STATS</button>
+  <button class="top-btn" onclick="openExchange()">💰 EXCHANGE</button>
+  <button class="top-btn" onclick="openCouncil()">🏛 COUNCIL</button>
+</div>
+
+<!-- GAME MAIN AREA -->
+<div id="game-main">
+
+  <!-- LEFT: Inventory -->
+  <div id="panel-left">
+    <div class="panel-hdr">⬡ INVENTORY</div>
+    <div id="supply-status">
+      <div class="supply-hdr">PARTICLE SUPPLY / SEC</div>
+      <div id="supply-rates-display"></div>
+    </div>
+    <div class="panel-body" id="inv-list"><div id="inv-empty">Particles accumulating…</div></div>
+  </div>
+
+  <!-- CENTER: Synthesiser -->
+  <div id="panel-center">
+    <div id="progress-bar-synth"><div id="progress-bar-fill-synth"></div></div>
+    <div class="panel-hdr">⚗ SYNTHESISER</div>
+    <div class="synth-body" id="synth-content">
+      <div id="synth-empty">
+        <div class="synth-empty-icon">⬡</div>
+        <div class="synth-empty-text">Select a recipe from the Codex<br>to begin synthesis</div>
+      </div>
+    </div><!-- /synth-body -->
+  </div><!-- /panel-center -->
+
+  <!-- RIGHT: Recipe Codex -->
+  <div id="panel-right">
+    <div class="panel-hdr">📖 RECIPE CODEX</div>
+    <div class="panel-body" id="codex-list"></div>
+  </div>
+
+</div><!-- /game-main -->
+
+<!-- BOTTOM BAR -->
+<div id="bottom-bar">
+  <div id="craft-ready-badge">
+    <div class="crh-pulse"></div>
+    <div class="crh-label">READY TO CRAFT</div>
+    <div class="crh-count" id="crh-count">0</div>
+    <div class="crh-name" id="crh-name"></div>
+  </div>
+  <div class="bottom-spacer"></div>
+  <div id="tier-display">TIER —</div>
+  <div style="font-size:.5rem;color:rgba(100,150,200,.28);font-family:'Orbitron',sans-serif;letter-spacing:.1em;margin-left:10px;">v0.2.9 · CB</div>
+</div>
+
+</div><!-- /main-game -->
+
+<!-- GUIDE MODAL -->
+<div id="guide-modal" class="modal-overlay" style="position:fixed;">
+  <button class="modal-close" onclick="closeGuide()">✕ CLOSE</button>
+  <div class="modal-title">MASTER CONSOLE — GSA AURORA</div>
+  <div class="co-tabs">
+    <div class="co-tab active" onclick="coTab('overview')" id="cotab-overview">MISSION BRIEF</div>
+    <div class="co-tab" onclick="coTab('guide')" id="cotab-guide">CRAFTING GUIDE</div>
+  </div>
+  <div class="co-tab-content active" id="co-tab-overview">
+    <div class="modal-panel">
+      <h3>MISSION SUMMARY</h3>
+      <p style="font-size:.72rem;color:rgba(150,195,235,.65);font-weight:300;line-height:1.85;">You are aboard the GSA Research Vessel <em>Aurora</em>. Your mission: replicate the full sequence of cosmic evolution — from elementary particles to a living world. The Particle Supply feeds quarks, electrons, and photons automatically. Use the Synthesiser to build upward through 5 tiers.</p>
+    </div>
+    <div class="modal-panel">
+      <h3>PRIMARY OBJECTIVES</h3>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:.71rem;font-weight:300;color:rgba(150,195,235,.7);line-height:1.6;"><span style="color:#a0d8ff;">①</span> <strong style="color:#c8e8ff;font-weight:500;">Nuclear Physics</strong> — Synthesise Protons and Neutrons. Assemble atomic nuclei.</div>
+        <div style="font-size:.71rem;font-weight:300;color:rgba(150,195,235,.7);line-height:1.6;"><span style="color:#88eebb;">②</span> <strong style="color:#c8e8ff;font-weight:500;">Atomic Chemistry</strong> — Add electrons to nuclei to form Hydrogen, Carbon, Oxygen.</div>
+        <div style="font-size:.71rem;font-weight:300;color:rgba(150,195,235,.7);line-height:1.6;"><span style="color:#ffdd88;">③</span> <strong style="color:#c8e8ff;font-weight:500;">Molecular Biology</strong> — Bond atoms into Water, Glucose, Amino Acids, DNA.</div>
+        <div style="font-size:.71rem;font-weight:300;color:rgba(150,195,235,.7);line-height:1.6;"><span style="color:#ff99aa;">④</span> <strong style="color:#c8e8ff;font-weight:500;">Cellular Life</strong> — Assemble Prokaryote and Eukaryote cells.</div>
+        <div style="font-size:.71rem;font-weight:300;color:rgba(150,195,235,.7);line-height:1.6;"><span style="color:#cc99ff;">⑤</span> <strong style="color:#c8e8ff;font-weight:500;">Biosphere</strong> — Grow Plants, Animals, an Ecosystem. Synthesise a New World 🌍.</div>
+      </div>
+    </div>
+    <div class="modal-panel">
+      <h3>YOUR PROGRESS</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div style="text-align:center;padding:8px;background:rgba(30,70,140,.08);border-radius:5px;border:1px solid rgba(60,120,200,.12);">
+          <div style="font-family:'Orbitron',sans-serif;font-size:1.3rem;font-weight:700;color:#a0d8ff;" id="co-crafted-count">0</div>
+          <div style="font-size:.58rem;color:rgba(120,165,205,.5);letter-spacing:.09em;margin-top:2px;">ITEMS CRAFTED</div>
+        </div>
+        <div style="text-align:center;padding:8px;background:rgba(30,70,140,.08);border-radius:5px;border:1px solid rgba(60,120,200,.12);">
+          <div style="font-family:'Orbitron',sans-serif;font-size:1.3rem;font-weight:700;color:#88eebb;" id="co-tier-count">—</div>
+          <div style="font-size:.58rem;color:rgba(120,165,205,.5);letter-spacing:.09em;margin-top:2px;">HIGHEST TIER</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="co-tab-content" id="co-tab-guide">
+    <div class="modal-panel">
+      <div class="guide-scroll" id="guide-scroll-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div id="stats-modal" class="modal-overlay" style="position:fixed;">
+  <button class="modal-close" onclick="closeStats()">✕ CLOSE</button>
+  <div class="modal-title">MISSION TERMINAL</div>
+  <div class="modal-sub">GSA AURORA — LIVE STATISTICS</div>
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-card-label">ITEMS CRAFTED</div><div class="stat-card-value" id="st-crafted">0</div></div>
+    <div class="stat-card"><div class="stat-card-label">HIGHEST TIER</div><div class="stat-card-value" id="st-tier">—</div></div>
+    <div class="stat-card"><div class="stat-card-label">TOTAL XP</div><div class="stat-card-value" id="st-xp">0</div></div>
+  </div>
+  <div class="modal-panel" style="max-width:860px;">
+    <h3>TIER PROGRESS</h3>
+    <div id="tier-bars"></div>
+  </div>
+  <div class="stats-subtabs">
+    <div class="stats-subtab active" onclick="statsTab('ach')" id="stab-ach">ACHIEVEMENTS</div>
+  </div>
+  <div id="ach-grid"></div>
+</div>
+
+
+<!-- ENDGAME -->
+<div id="endgame-overlay">
+  <canvas id="eg-canvas"></canvas>
+  <div id="eg-ui">
+    <div id="eg-stamp">GSA AURORA — MISSION LOG — CLASSIFIED</div>
+    <div id="eg-title">NEW WORLD 🌍</div>
+    <div id="eg-subtitle">You have done it, Scientist. From a single quark to a living, breathing biosphere.<br>The universe has been remade.</div>
+    <div class="eg-npc-row" id="eg-council-msgs"></div>
+    <div id="eg-xp-display"></div>
+    <button id="eg-continue" onclick="closeEndgame()">CONTINUE PLAYING →</button>
+  </div>
+</div>
+
+<!-- EXCHANGE POINT MODAL -->
+<div id="ep-modal" class="modal-overlay" style="position:fixed;background:rgba(12,6,2,.97);">
+  <button class="modal-close" style="border-color:rgba(200,150,40,.35);color:#ffcc88;" onclick="closeExchange()">✕ CLOSE</button>
+  <div class="modal-title" style="color:#ffdd88;">EXCHANGE POINT</div>
+  <div class="modal-sub">SPEND XP TO UPGRADE YOUR LAB</div>
+  <div class="ep-xp-row">
+    <div class="ep-xp-lbl">AVAILABLE XP</div>
+    <div class="ep-xp-val" id="ep-xp-val">0</div>
+    <div class="ep-xp-note">Earned from achievements and synthesis</div>
+  </div>
+  <div class="ep-grid" id="ep-grid"></div>
+</div>
+
+<!-- CHNOPS SECRET -->
+<div id="chnops-overlay">
+  <button class="chnops-close-btn" onclick="closeChnops()">[ ESC ] CLOSE</button>
+  <div style="font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.3em;color:rgba(70,160,230,.4);">● classified ●</div>
+  <div class="chnops-title">CHNOPS PROTOCOL</div>
+  <div class="chnops-sub">A molecular formula is etched into the hull of the Aurora.<br>Six elements. One compound. No hints.</div>
+  <div style="width:300px;height:1px;background:rgba(70,160,230,.14);"></div>
+  <div style="font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.18em;color:rgba(90,180,240,.55);">ENTER THE MOLECULAR FORMULA</div>
+  <input id="chnops-input" type="text" maxlength="20" placeholder="C?H??O??" autocomplete="off" spellcheck="false" onkeydown="chnopsKey(event)">
+  <div id="chnops-feedback"></div>
+</div>
+
+<!-- COUNCIL MODAL -->
+<div id="council-modal" class="modal-overlay" style="position:fixed;background:rgba(2,8,20,.97);">
+  <button class="modal-close" onclick="closeCouncil()">✕ CLOSE</button>
+  <div class="modal-title" style="color:#a8e8c0;">COUNCIL CHAMBER</div>
+  <div class="modal-sub">GSA AURORA · SCIENCE DIVISION</div>
+  <div class="co-tabs" style="border-color:rgba(50,140,80,.2);">
+    <div class="co-tab active" onclick="councilTab('npcs')" id="ctab-npcs" style="--tc:#88eebb;">COUNCIL MEMBERS</div>
+  </div>
+
+  <!-- NPC TAB -->
+  <div class="co-tab-content active" id="ct-npcs" style="max-width:900px;width:100%;">
+    <div id="council-npc-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;padding:14px 0;"></div>
+    <!-- Dialogue panel (hidden until NPC selected) -->
+    <div id="council-dlg-panel" style="display:none;max-width:900px;width:100%;">
+      <div id="cdlg-header" style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:rgba(6,20,12,.9);border:1px solid rgba(50,140,70,.2);border-radius:8px 8px 0 0;">
+        <div id="cdlg-portrait" style="font-size:2.2rem;width:50px;height:50px;display:flex;align-items:center;justify-content:center;background:rgba(10,36,16,.8);border:1px solid rgba(50,140,70,.28);border-radius:7px;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div id="cdlg-name" style="font-family:'Orbitron',sans-serif;font-size:.68rem;font-weight:700;letter-spacing:.12em;color:#a0e8b0;"></div>
+          <div id="cdlg-title" style="font-size:.55rem;color:rgba(100,190,120,.45);margin-top:2px;font-weight:300;"></div>
+        </div>
+        <button onclick="closeDlg()" style="font-family:'Orbitron',sans-serif;font-size:.48rem;letter-spacing:.12em;padding:6px 11px;border-radius:4px;cursor:pointer;border:1px solid rgba(60,150,80,.28);background:transparent;color:rgba(120,200,140,.55);transition:all .15s;">← BACK</button>
+      </div>
+      <div id="cdlg-text" style="padding:18px 20px;background:rgba(4,14,8,.88);border:1px solid rgba(50,140,70,.15);border-top:none;font-size:.73rem;color:rgba(200,240,210,.82);line-height:1.8;font-weight:300;min-height:80px;"></div>
+      <div id="cdlg-nav" style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:rgba(4,12,8,.92);border:1px solid rgba(50,140,70,.15);border-top:1px solid rgba(50,140,70,.12);border-radius:0 0 8px 8px;">
+        <button class="cdlg-nav-btn" id="cdlg-prev" onclick="cdlgPrev()">◀ PREV</button>
+        <span id="cdlg-counter" style="font-family:'Orbitron',sans-serif;font-size:.48rem;color:rgba(100,190,120,.5);letter-spacing:.1em;flex:1;text-align:center;"></span>
+        <button class="cdlg-nav-btn" id="cdlg-next" onclick="cdlgNext()">NEXT ▶</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ACHIEVEMENT POPUPS -->
+<div id="achievement-container"></div>
+
+</body>
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// GAME DATA
+// ═══════════════════════════════════════════════════════════════════
+
+const CRAFT_NODES_RAW=[
+  {id:'n1', tier:0,name:'Up Quark',        desc:'Charge +2/3. One of the lightest quarks.',                    ing:''},
+  {id:'n2', tier:0,name:'Down Quark',       desc:'Charge −1/3. Pairs with Up Quark in nucleons.',              ing:''},
+  {id:'n3', tier:0,name:'Strange Quark',    desc:'Charge −1/3. Heavier than Down — found in kaons.',           ing:''},
+  {id:'n4', tier:0,name:'Charm Quark',      desc:'Charge +2/3. Second-generation partner of Up.',              ing:''},
+  {id:'n5', tier:0,name:'Gluon',            desc:'Massless boson — carries the strong nuclear force.',         ing:''},
+  {id:'n6', tier:0,name:'Photon',           desc:'Massless boson — carries the electromagnetic force.',        ing:''},
+  {id:'n7', tier:0,name:'Electron',         desc:'Charge −1, mass 0.511 MeV. First-gen lepton.',               ing:''},
+  {id:'n8', tier:0,name:'Electron Neutrino',desc:'Neutral lepton. Barely interacts with matter.',              ing:''},
+  {id:'n9', tier:0,name:'W Boson',          desc:'Carries the weak nuclear force. Enables beta decay.',        ing:''},
+  {id:'n10',tier:1,name:'Proton',           desc:'2 Up + 1 Down quark bound by gluons. Charge +1.',            ing:'Up Quark ×2, Down Quark ×1, Gluon ×1'},
+  {id:'n11',tier:1,name:'Neutron',          desc:'1 Up + 2 Down quark bound by gluons. Charge 0.',             ing:'Up Quark ×1, Down Quark ×2, Gluon ×1'},
+  {id:'n13',tier:1,name:'Alpha Particle',   desc:'2 protons + 2 neutrons. Helium-4 nucleus.',                  ing:'Proton ×2, Neutron ×2'},
+  {id:'n14',tier:1,name:'Deuteron',         desc:'Nucleus of Deuterium — 1 proton + 1 neutron.',               ing:'Proton ×1, Neutron ×1'},
+  {id:'n15',tier:1,name:'Carbon Nucleus',   desc:'C-12 nucleus: 6 protons and 6 neutrons bound by the strong force.',ing:'Proton ×6, Neutron ×6'},
+  {id:'n16',tier:1,name:'Oxygen Nucleus',   desc:'O-16 nucleus: 8 protons and 8 neutrons. Doubly magic — exceptionally stable.',ing:'Proton ×8, Neutron ×8'},
+  {id:'n70',tier:1,name:'Magnesium Nucleus',desc:'Mg-24 nucleus: 12 protons + 12 neutrons.',                  ing:'Proton ×12, Neutron ×12'},
+  {id:'n17',tier:2,name:'Hydrogen (H)',     desc:'1 proton + 1 electron. Most abundant element in the universe.',ing:'Proton ×1, Electron ×1'},
+  {id:'n18',tier:2,name:'Deuterium (²H)',   desc:'Heavy hydrogen — 1 proton, 1 neutron, 1 electron.',          ing:'Deuteron ×1, Electron ×1'},
+  {id:'n19',tier:2,name:'Helium (He)',       desc:'Noble gas. 2 protons, 2 neutrons, 2 electrons.',             ing:'Alpha Particle ×1, Electron ×2'},
+  {id:'n20',tier:2,name:'Carbon (C)',        desc:'Basis of all organic chemistry. 6p, 6n, 6e.',               ing:'Carbon Nucleus ×1, Electron ×6'},
+  {id:'n21',tier:2,name:'Nitrogen (N)',      desc:'N-14: 7 protons, 7 neutrons, 7 electrons.',                 ing:'Proton ×7, Neutron ×7, Electron ×7'},
+  {id:'n22',tier:2,name:'Oxygen (O)',        desc:'8 protons, 8 neutrons. Essential for life and water.',       ing:'Oxygen Nucleus ×1, Electron ×8'},
+  {id:'n23',tier:2,name:'Phosphorus (P)',    desc:'P-31: 15 protons, 16 neutrons, 15 electrons.',              ing:'Proton ×15, Neutron ×16, Electron ×15'},
+  {id:'n71',tier:2,name:'Magnesium (Mg)',    desc:'Mg-24: 12 protons, 12 neutrons, 12 electrons. Cofactor in chlorophyll.',ing:'Magnesium Nucleus ×1, Electron ×12'},
+  {id:'n25',tier:3,name:'Water (H₂O)',       desc:'H₂O. Polar molecule — the universal biological solvent.',   ing:'Hydrogen (H) ×2, Oxygen (O) ×1'},
+  {id:'n26',tier:3,name:'Hydrogen Gas (H₂)', desc:'H₂. Diatomic, nonpolar. Lightest molecule.',               ing:'Hydrogen (H) ×2'},
+  {id:'n27',tier:3,name:'Oxygen Gas (O₂)',   desc:'O₂. Diatomic, paramagnetic. Generated by photosynthesis.', ing:'Oxygen (O) ×2'},
+  {id:'n28',tier:3,name:'Carbon Dioxide',    desc:'CO₂. Fixed by photosynthesis, released by respiration.',   ing:'Carbon (C) ×1, Oxygen (O) ×2'},
+  {id:'n29',tier:3,name:'Methane (CH₄)',     desc:'CH₄. Tetrahedral geometry. Simplest alkane.',               ing:'Carbon (C) ×1, Hydrogen (H) ×4'},
+  {id:'n30',tier:3,name:'Ammonia (NH₃)',     desc:'NH₃. Trigonal pyramidal. Essential nitrogen carrier.',      ing:'Nitrogen (N) ×1, Hydrogen (H) ×3'},
+  {id:'n31',tier:3,name:'Glucose (C₆H₁₂O₆)',desc:'C₆H₁₂O₆. Photosynthesis product. Primary energy carrier.', ing:'Carbon Dioxide ×6, Water (H₂O) ×6, Photon ×6'},
+  {id:'n32',tier:3,name:'Amino Acid',        desc:'Glycine C₂H₅NO₂. Amine + carboxyl. Simplest amino acid.',  ing:'Carbon (C) ×2, Hydrogen (H) ×5, Nitrogen (N) ×1, Oxygen (O) ×2'},
+  {id:'n33',tier:3,name:'Fatty Acid',        desc:'C₄H₈O₂ — butyric acid. Raw material of cell membranes.',  ing:'Carbon (C) ×4, Hydrogen (H) ×8, Oxygen (O) ×2'},
+  {id:'n34',tier:3,name:'Nucleotide',        desc:'Ribose + nitrogenous base + phosphate. One DNA monomer.',   ing:'Ribose ×1, Nitrogenous Base ×1, Phosphate Group ×1'},
+  {id:'n57',tier:3,name:'Ozone (O₃)',        desc:'O₃. Forms in stratosphere. Absorbs UV radiation.',          ing:'Oxygen (O) ×3'},
+  {id:'n58',tier:3,name:'Hydronium (H₃O+)',  desc:'Water + proton → acid chemistry ion.',                     ing:'Water (H₂O) ×1, Proton ×1'},
+  {id:'n59',tier:3,name:'Nitric Acid (HNO₃)',desc:'HNO₃. Key in atmospheric nitrogen cycling.',               ing:'Nitrogen (N) ×1, Oxygen (O) ×3, Hydrogen (H) ×1'},
+  {id:'n60',tier:3,name:'Ethanol (C₂H₅OH)',  desc:'C₂H₅OH. Anaerobic fermentation by yeast.',                ing:'Glucose (C₆H₁₂O₆) ×1'},
+  {id:'n61',tier:3,name:'Carbonic Acid',     desc:'H₂CO₃. Regulates blood pH and ocean acidification.',       ing:'Carbon Dioxide ×1, Water (H₂O) ×1'},
+  {id:'n62',tier:3,name:'Hydrogen Peroxide', desc:'H₂O₂. Strong oxidiser. Decomposes to H₂O + ½O₂.',         ing:'Hydrogen Gas (H₂) ×1, Oxygen Gas (O₂) ×1'},
+  {id:'n63',tier:3,name:'Excited Molecule',  desc:'Molecule absorbs photons — basis of photosynthesis.',       ing:'Water (H₂O) ×1, Photon ×2'},
+  {id:'n72',tier:3,name:'Hydrocarbon Chain', desc:'Propane (C₃H₈). Basis of fatty acid tails.',               ing:'Carbon (C) ×3, Hydrogen (H) ×8'},
+  {id:'n73',tier:3,name:'Ribose',            desc:'C₅H₁₀O₄ — pentose sugar backbone of RNA.',                 ing:'Carbon (C) ×5, Hydrogen (H) ×10, Oxygen (O) ×4'},
+  {id:'n74',tier:3,name:'Nitrogenous Base',  desc:'Adenine (C₅H₅N₅) — purine base. Encodes genetic info.',    ing:'Carbon (C) ×5, Nitrogen (N) ×5, Hydrogen (H) ×5'},
+  {id:'n75',tier:3,name:'Phosphate Group',   desc:'PO₄³⁻ — backbone of DNA and energy-transfer of ATP.',      ing:'Phosphorus (P) ×1, Oxygen (O) ×4'},
+  {id:'n69',tier:4,name:'Chlorophyll',       desc:'C₅₅H₇₂MgN₄O₅. Mg-porphyrin pigment. Powers photosynthesis.',ing:'Nitrogen (N) ×4, Amino Acid ×2, Magnesium (Mg) ×1, Hydrocarbon Chain ×1, Oxygen (O) ×5'},
+  {id:'n35',tier:4,name:'Protein',           desc:'Chain of amino acids — enzymes, structure, signalling.',    ing:'Amino Acid ×5'},
+  {id:'n36',tier:4,name:'Lipid Bilayer',     desc:'Two fatty acid sheets — forms the cell membrane.',          ing:'Fatty Acid ×2'},
+  {id:'n37',tier:4,name:'DNA Strand',        desc:'Double helix — encodes all genetic instructions.',          ing:'Nucleotide ×4'},
+  {id:'n38',tier:4,name:'RNA',               desc:'Single-strand messenger — ferries DNA instructions.',       ing:'Nucleotide ×2'},
+  {id:'n39',tier:4,name:'ATP',               desc:'Adenosine triphosphate — universal cellular energy currency.',ing:'Nucleotide ×1, Phosphorus (P) ×2'},
+  {id:'n40',tier:4,name:'Ribosome',          desc:'Molecular machine that assembles proteins from RNA.',       ing:'RNA ×1, Protein ×1'},
+  {id:'n41',tier:4,name:'Prokaryote Cell',   desc:'First living cell — no nucleus. The ancestor of all life.', ing:'Lipid Bilayer ×1, DNA Strand ×1, Ribosome ×1, ATP ×2'},
+  {id:'n42',tier:4,name:'Eukaryote Cell',    desc:'Complex cell with nucleus and organelles.',                 ing:'Prokaryote Cell ×1, DNA Strand ×2'},
+  {id:'n43',tier:5,name:'Single-Cell Organism',desc:'Life! A fully self-replicating cell capable of evolution.',ing:'Prokaryote Cell ×3'},
+  {id:'n44',tier:5,name:'Multicellular Organism',desc:'Specialised cells working together as a single body.', ing:'Eukaryote Cell ×4'},
+  {id:'n45',tier:5,name:'Plant',             desc:'Photosynthetic organism. Converts CO₂ + light → Glucose.',  ing:'Eukaryote Cell ×2, Water (H₂O) ×2, Carbon Dioxide ×1, Photon ×4'},
+  {id:'n46',tier:5,name:'Animal',            desc:'Heterotrophic organism that consumes other life for energy.',ing:'Eukaryote Cell ×2, Glucose (C₆H₁₂O₆) ×2, Oxygen Gas (O₂) ×1, Protein ×2'},
+  {id:'n47',tier:5,name:'Ecosystem',         desc:'A self-sustaining web of organisms, chemistry and cycles.', ing:'Plant ×1, Animal ×1, Water (H₂O) ×3'},
+  {id:'n48',tier:5,name:'NEW WORLD 🌍',      desc:'A living, breathing planet teeming with life. Mission complete!',ing:'Ecosystem ×1'},
+];
+
+const TIER_COLORS=['#a0d8ff','#88eebb','#ffdd88','#ff99aa','#cc99ff','#ffbb77'];
+const TIER_NAMES=['Elementary Particles','Hadrons / Nuclei','Atoms','Molecules','Cells / Biology','Organisms / Ecosystems'];
+const TIER_SHORT=['T0','T1','T2','T3','T4','T5'];
+
+// Build maps
+const NODE_MAP={};
+const NAME_ID={};
+CRAFT_NODES_RAW.forEach(n=>{ NODE_MAP[n.id]=n; NAME_ID[n.name]=n.id; });
+
+function parseIng(str){
+  if(!str||!str.trim()) return [];
+  return str.split(',').map(s=>{
+    s=s.trim();
+    const m=s.match(/^(.+?)\s*[×x]\s*(\d+)$/) || s.match(/^(.+)$/);
+    if(!m) return null;
+    const name=m[1].trim(); const qty=m[2]?parseInt(m[2]):1;
+    const id=NAME_ID[name]; return id?{nodeId:id,qty}:null;
+  }).filter(Boolean);
+}
+
+const RECIPE_MAP={};
+CRAFT_NODES_RAW.forEach(n=>{ if(n.tier>0){ const r=parseIng(n.ing); if(r.length) RECIPE_MAP[n.id]=r; }});
+
+// ── SUPPLY RATES ─────────────────────────────────────────────────────
+const SUPPLY_RATE_BASE={n1:0.45,n2:0.45,n5:0.32,n7:0.38,n6:0.22,n3:0.12,n4:0.12,n8:0.10,n9:0.08};
+let supplyRateMult=1.0;
+let SUPPLY_CAP=60;
+let supplyAccum={};
+Object.keys(SUPPLY_RATE_BASE).forEach(k=>{supplyAccum[k]=0;});
+
+// ── GAME STATE ────────────────────────────────────────────────────────
+const inventory={};
+CRAFT_NODES_RAW.forEach(n=>{inventory[n.id]=0;});
+const crafted=new Set();
+let selRecipeId=null;
+let totalXP=0;
+let supplyBoostEnd=0;
+let doubleYieldEnd=0;
+const purchasedUpgrades=new Set();
+let epBuyCount=0;
+let gameStarted=false;
+
+// Dirty flags
+let invDirty=true;
+let codexDirty=true;
+let synthDirty=true;
+
+// ── EXCHANGE POINT ITEMS ──────────────────────────────────────────────
+const EP_ITEMS=[
+  {id:'gluon_pack',    icon:'🫧',name:'Gluon Pack',       cost:80, desc:'Receive 40 Gluons instantly.',                              type:'particles',give:{n5:40}},
+  {id:'quark_bag',     icon:'⚛️',name:'Quark Bag',        cost:100,desc:'Receive 30 Up Quarks and 30 Down Quarks.',                  type:'particles',give:{n1:30,n2:30}},
+  {id:'electron_well', icon:'⚡',name:'Electron Reserve', cost:90, desc:'Receive 50 Electrons. Atoms need them.',                    type:'particles',give:{n7:50}},
+  {id:'photon_flare',  icon:'☀️',name:'Photon Flare',     cost:110,desc:'Receive 60 Photons. Used in Plants and transmutations.',    type:'particles',give:{n6:60}},
+  {id:'strange_inf',   icon:'🌀',name:'Strange Infusion', cost:120,desc:'40 Strange Quarks and 20 Charm Quarks.',                    type:'particles',give:{n3:40,n4:20}},
+  {id:'nucleon_seed',  icon:'🧲',name:'Nucleon Seed',     cost:200,desc:'20 Protons and 20 Neutrons. Jumpstart atoms.',              type:'particles',give:{n10:20,n11:20}},
+  {id:'plasma_burst',  icon:'💥',name:'Plasma Burst',     cost:350,desc:'25 of every tier-0 particle.',                              type:'particles',give:{n1:25,n2:25,n3:25,n4:25,n5:25,n6:25,n7:25,n8:25,n9:25}},
+  {id:'overdrive_60',  icon:'🚀',name:'Supply Overdrive', cost:180,desc:'2× supply rates for 60 seconds.',                           type:'timed',duration:60000,effect:'overdrive'},
+  {id:'overdrive_180', icon:'🔥',name:'Extended Overdrive',cost:420,desc:'2× supply rates for 3 minutes.',                           type:'timed',duration:180000,effect:'overdrive'},
+  {id:'double_yield',  icon:'✨',name:'Quantum Yield',    cost:300,desc:'Every synthesis produces 2 items for 90 seconds.',          type:'timed',duration:90000,effect:'yield'},
+  {id:'cap_boost',     icon:'🏦',name:'Expanded Storage', cost:500,desc:'Raise inventory cap from 60 → 120 permanently.',           type:'upgrade',effect:'cap_boost',once:true},
+  {id:'fast_supply',   icon:'⚗️',name:'Tuned Bench',      cost:650,desc:'Permanently +50% all supply rates.',                       type:'upgrade',effect:'fast_supply',once:true},
+  {id:'all_unlock',    icon:'🌟',name:'Aurora Special',   cost:999,desc:'30 Protons, 30 Neutrons, 30 Electrons + 60s Overdrive.',    type:'particles',give:{n10:30,n11:30,n7:30},bonus:'overdrive'},
+];
+
+// ── ACHIEVEMENTS ─────────────────────────────────────────────────────
+const ACHIEVEMENTS=[
+  // Nuclear
+  {id:'first_proton',  icon:'⚛️',title:'First Proton',         desc:'Build a Proton from quarks.',                         xp:100, type:'craft',val:'n10'},
+  {id:'first_neutron', icon:'🔵',title:'First Neutron',        desc:'Build a Neutron. Same mass, no charge.',              xp:100, type:'craft',val:'n11'},
+  {id:'alpha',         icon:'☢️',title:'Alpha Particle',       desc:'Assemble a Helium-4 nucleus.',                        xp:120, type:'craft',val:'n13'},
+  {id:'carbon_nuc',    icon:'⬛',title:'Carbon Nucleus',       desc:'Build the nucleus of carbon-12.',                     xp:150, type:'craft',val:'n15'},
+  {id:'tier1_done',    icon:'⚡',title:'Nuclear Physicist',    desc:'Synthesise all Tier 1 hadrons and nuclei.',            xp:300, type:'tier_complete',val:1},
+  // Atoms
+  {id:'atom_first',    icon:'💫',title:'First Atom',           desc:'Build Hydrogen — proton + electron.',                 xp:150, type:'craft',val:'n17'},
+  {id:'helium_made',   icon:'🎈',title:'Noble and Aloof',      desc:'Create Helium. Refuses to bond with anyone.',         xp:160, type:'craft',val:'n19'},
+  {id:'carbon_forged', icon:'⬛',title:'The Carbon Key',       desc:'Create Carbon — backbone of all organic chemistry.',  xp:200, type:'craft',val:'n20'},
+  {id:'oxygen_made',   icon:'🫧',title:'Breathe Easy',         desc:'Create Oxygen. All future life will be grateful.',    xp:180, type:'craft',val:'n22'},
+  {id:'tier2_done',    icon:'🔭',title:'Atomic Architect',     desc:'Synthesise all Tier 2 atoms.',                        xp:400, type:'tier_complete',val:2},
+  // Molecules
+  {id:'water_made',    icon:'💧',title:'Water World',          desc:'Synthesise water — the foundation of life.',          xp:250, type:'craft',val:'n25'},
+  {id:'glucose_made',  icon:'🍬',title:'Sugar Rush',           desc:'Create Glucose — the primary fuel of life.',          xp:280, type:'craft',val:'n31'},
+  {id:'amino_made',    icon:'🧱',title:'First Building Block', desc:'Synthesise an Amino Acid.',                           xp:270, type:'craft',val:'n32'},
+  {id:'nucleotide_made',icon:'🔤',title:'Letter of the Code',  desc:'Synthesise a Nucleotide.',                            xp:290, type:'craft',val:'n34'},
+  {id:'ozone_made',    icon:'🛡️',title:'Planetary Shield',    desc:'Synthesise Ozone.',                                   xp:150, type:'craft',val:'n57'},
+  {id:'ethanol_made',  icon:'🍷',title:'Accidental Brewery',   desc:'Create Ethanol. Civilisation will use this.',         xp:140, type:'craft',val:'n60'},
+  {id:'tier3_done',    icon:'🧪',title:'Master Chemist',       desc:'Synthesise all Tier 3 molecules.',                    xp:500, type:'tier_complete',val:3},
+  // Biology
+  {id:'protein_made',  icon:'🧶',title:'First Protein',        desc:'Chain amino acids into a Protein.',                   xp:320, type:'craft',val:'n35'},
+  {id:'dna_strand',    icon:'🧬',title:'Code of Life',         desc:'Assemble a DNA Strand.',                              xp:400, type:'craft',val:'n37'},
+  {id:'atp_made',      icon:'⚡',title:'Charged Up',           desc:'Create ATP — universal energy currency.',             xp:350, type:'craft',val:'n39'},
+  {id:'chloro_made',   icon:'🌿',title:'Solar Powered',        desc:'Build Chlorophyll — the molecule that turns light into life.',xp:380,type:'craft',val:'n69'},
+  {id:'first_cell',    icon:'🦠',title:'Life Begins',          desc:'Create the first Prokaryote Cell.',                   xp:500, type:'craft',val:'n41'},
+  {id:'eukaryote',     icon:'🔬',title:'Getting Complicated',  desc:'Synthesise a Eukaryote Cell.',                        xp:600, type:'craft',val:'n42'},
+  {id:'tier4_done',    icon:'🧬',title:'Cellular Engineer',    desc:'Synthesise all Tier 4 biological compounds.',         xp:600, type:'tier_complete',val:4},
+  // Organisms
+  {id:'single_org',    icon:'🌱',title:'Life Finds a Way',     desc:'Create a Single-Cell Organism.',                      xp:700, type:'craft',val:'n43'},
+  {id:'plant_made',    icon:'🌿',title:'First Photosynthesiser',desc:'Grow a Plant.',                                       xp:850, type:'craft',val:'n45'},
+  {id:'animal_made',   icon:'🦎',title:'First Animal',         desc:'Create an Animal.',                                   xp:900, type:'craft',val:'n46'},
+  {id:'ecosystem',     icon:'🌍',title:'The Web of Life',      desc:'Build a complete self-sustaining Ecosystem.',          xp:1000,type:'craft',val:'n47'},
+  {id:'mission_done',  icon:'🌟',title:'MISSION COMPLETE',     desc:'You have built a New World. The cosmos watches in genuine awe.',xp:9999,type:'craft',val:'n48'},
+  {id:'tier5_done',    icon:'🌏',title:'Creator of Worlds',    desc:'Synthesise every Tier 5 organism.',                   xp:700, type:'tier_complete',val:5},
+  // Collector
+  {id:'crafted_10',    icon:'🔟',title:'On a Roll',            desc:'Craft 10 different items.',                           xp:100, type:'craft_count',val:10},
+  {id:'crafted_25',    icon:'💪',title:'Dedicated Synthesiser',desc:'Craft 25 different items.',                           xp:200, type:'craft_count',val:25},
+  {id:'water_hoard',   icon:'🌊',title:'Damp',                 desc:'Have 50 Water molecules in inventory.',               xp:120, type:'inv_count',val:{id:'n25',qty:50}},
+  {id:'glucose_hoard', icon:'🍭',title:'Diabetic Warning',     desc:'Hoard 40 Glucose molecules.',                         xp:130, type:'inv_count',val:{id:'n31',qty:40}},
+  {id:'too_many_up',   icon:'😬',title:'Up Quark Billionaire', desc:'Accumulate 99 Up Quarks.',                            xp:75,  type:'inv_count',val:{id:'n1',qty:99}},
+  {id:'amino_5',       icon:'🧱',title:'Side-Chain Gang',      desc:'Craft 5 Amino Acids.',                                xp:180, type:'craft_qty',val:{id:'n32',qty:5}},
+  {id:'protein_5',     icon:'🏋️',title:'Getting Ripped',      desc:'Synthesise 5 Proteins.',                              xp:200, type:'craft_qty',val:{id:'n35',qty:5}},
+  {id:'ep_first_buy',  icon:'💰',title:'First Transaction',    desc:'Make your first Exchange Point purchase.',            xp:50,  type:'ep_buy',val:1},
+  {id:'ep_five_buys',  icon:'🛒',title:'Loyal Customer',       desc:'Make 5 Exchange Point purchases.',                    xp:150, type:'ep_buy',val:5},
+];
+
+const earnedAch=new Set();
+let achQueue=[];
+let achDisplaying=false;
+
+// ═══════════════════════════════════════════════════════════════════
+// SUPPLY SYSTEM
+// ═══════════════════════════════════════════════════════════════════
+let lastSupplyTime=0;
+
+function tickSupply(){
+  const now=performance.now();
+  const dt=Math.min((now-lastSupplyTime)/1000, 0.5);
+  lastSupplyTime=now;
+  const boostMult=(supplyBoostEnd>0&&now<supplyBoostEnd)?2.0:1.0;
+  let changed=false;
+  Object.entries(SUPPLY_RATE_BASE).forEach(([id,rate])=>{
+    if(!rate) return;
+    supplyAccum[id]=(supplyAccum[id]||0)+rate*boostMult*supplyRateMult*dt;
+    if(supplyAccum[id]>=1&&(inventory[id]||0)<SUPPLY_CAP){
+      const add=Math.floor(supplyAccum[id]);
+      inventory[id]=Math.min(SUPPLY_CAP,(inventory[id]||0)+add);
+      supplyAccum[id]-=add;
+      changed=true;
+    }
+  });
+  // Overdrive badge
+  if(supplyBoostEnd>0&&now<supplyBoostEnd){
+    document.getElementById('overdrive-badge').classList.add('show');
+  } else {
+    document.getElementById('overdrive-badge').classList.remove('show');
+    if(supplyBoostEnd>0&&now>supplyBoostEnd) supplyBoostEnd=0;
+  }
+  if(doubleYieldEnd>0&&now>doubleYieldEnd) doubleYieldEnd=0;
+  if(changed){
+    invDirty=true;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CRAFTING LOGIC
+// ═══════════════════════════════════════════════════════════════════
+function canCraft(id){
+  const r=RECIPE_MAP[id];
+  return r&&r.length&&r.every(ing=>(inventory[ing.nodeId]||0)>=ing.qty);
+}
+
+function calcProgress(){
+  const total=CRAFT_NODES_RAW.filter(n=>n.tier>0).length;
+  return crafted.size/total;
+}
+
+function doCraft(){
+  if(!selRecipeId||!canCraft(selRecipeId)) return;
+  const recipe=RECIPE_MAP[selRecipeId];
+  recipe.forEach(ing=>{ inventory[ing.nodeId]-=ing.qty; });
+  const yieldAmt=(doubleYieldEnd>0&&performance.now()<doubleYieldEnd)?2:1;
+  inventory[selRecipeId]=(inventory[selRecipeId]||0)+yieldAmt;
+  crafted.add(selRecipeId);
+  checkAchievements('craft',selRecipeId);
+  if(selRecipeId==='n48') setTimeout(showEndGameCutscene,800);
+  // Flash
+  const sc=document.getElementById('synth-content');
+  sc.classList.remove('synth-flash'); void sc.offsetWidth; sc.classList.add('synth-flash');
+  invDirty=true; codexDirty=true; synthDirty=true;
+  updateTopBar();
+}
+
+function selectRecipe(id){
+  selRecipeId=id;
+  synthDirty=true;
+  codexDirty=true;
+  renderSynth();
+  renderCodexHighlight();
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// RENDER FUNCTIONS — only called when dirty
+// ═══════════════════════════════════════════════════════════════════
+function updateTopBar(){
+  document.getElementById('xp-val').textContent=totalXP.toLocaleString();
+  const total=CRAFT_NODES_RAW.filter(n=>n.tier>0).length;
+  const pct=(crafted.size/total*100).toFixed(0);
+  document.getElementById('progress-fill').style.width=pct+'%';
+  document.getElementById('progress-label').textContent=crafted.size+' / '+total+' SYNTHESISED';
+  document.getElementById('progress-bar-fill-synth').style.width=pct+'%';
+  // Tier display
+  let highTier=0;
+  CRAFT_NODES_RAW.forEach(n=>{ if(crafted.has(n.id)&&n.tier>highTier) highTier=n.tier; });
+  document.getElementById('tier-display').textContent='TIER '+(crafted.size>0?highTier:'—');
+  // Craft ready badge
+  const ready=CRAFT_NODES_RAW.filter(n=>n.tier>0&&canCraft(n.id));
+  const badge=document.getElementById('craft-ready-badge');
+  if(ready.length>0){
+    badge.classList.add('show');
+    document.getElementById('crh-count').textContent=ready.length;
+    const best=ready.reduce((a,b)=>b.tier>a.tier?b:a);
+    document.getElementById('crh-name').textContent=best.name;
+  } else {
+    badge.classList.remove('show');
+  }
+}
+
+function renderInv(){
+  if(!invDirty) return;
+  invDirty=false;
+  const el=document.getElementById('inv-list');
+  const byTier=Array.from({length:6},()=>[]);
+  CRAFT_NODES_RAW.forEach(n=>{ if((inventory[n.id]||0)>0) byTier[n.tier].push(n); });
+  let h='';
+  for(let t=0;t<6;t++){
+    if(!byTier[t].length) continue;
+    h+=`<div class="inv-tier-lbl" style="color:${TIER_COLORS[t]}">${TIER_NAMES[t]}</div>`;
+    byTier[t].forEach(n=>{
+      const tc=TIER_COLORS[n.tier];
+      h+=`<div class="inv-item"><span class="inv-dot" style="background:${tc}"></span><span class="inv-name">${n.name}</span><span class="inv-qty">×${inventory[n.id]}</span></div>`;
+    });
+  }
+  if(!h) h='<div id="inv-empty" style="padding:12px 6px;font-size:.62rem;color:rgba(70,110,180,.4);line-height:1.8;">Particles accumulating…</div>';
+  el.innerHTML=h;
+  // Supply rates
+  let sr='';
+  Object.entries(SUPPLY_RATE_BASE).forEach(([id,rate])=>{
+    if(!rate) return;
+    const mult=(supplyBoostEnd>0&&performance.now()<supplyBoostEnd)?2:1;
+    const eff=(rate*supplyRateMult*mult).toFixed(2);
+    const n=NODE_MAP[id];
+    if(n) sr+=`<div class="supply-row"><span class="supply-name">${n.name}</span><span class="supply-rate">${eff}/s</span></div>`;
+  });
+  document.getElementById('supply-rates-display').innerHTML=sr;
+}
+
+function renderSynth(){
+  if(!synthDirty) return;
+  synthDirty=false;
+  const el=document.getElementById('synth-content');
+  if(!selRecipeId){
+    el.innerHTML='<div id="synth-empty"><div class="synth-empty-icon">⬡</div><div class="synth-empty-text">Select a recipe from the Codex<br>to begin synthesis</div></div>';
+    return;
+  }
+  const node=NODE_MAP[selRecipeId];
+  const recipe=RECIPE_MAP[selRecipeId]||[];
+  const tc=TIER_COLORS[node.tier];
+  const done=crafted.has(selRecipeId);
+  const ok=canCraft(selRecipeId);
+  let ingHtml='';
+  recipe.forEach(ing=>{
+    const inn=NODE_MAP[ing.nodeId];
+    const have=inventory[ing.nodeId]||0;
+    const enough=have>=ing.qty;
+    const itc=TIER_COLORS[inn.tier];
+    ingHtml+=`<div class="ing-slot ${enough?'ing-ok':'ing-missing'}">
+      <span class="ing-dot" style="background:${itc}"></span>
+      <span class="ing-name">${inn.name}</span>
+      <span class="ing-need">need ×${ing.qty}</span>
+      <span class="ing-have" style="color:${enough?'#88ffaa':'#ff7766'}">have ${have}</span>
+    </div>`;
+  });
+  if(!recipe.length) ingHtml='<div style="font-size:.66rem;color:rgba(80,130,200,.4);font-style:italic;">Tier 0 particle — supplied automatically.</div>';
+  // Max craftable
+  let maxCraft=0;
+  if(recipe.length){
+    maxCraft=recipe.reduce((m,ing)=>Math.min(m,Math.floor((inventory[ing.nodeId]||0)/ing.qty)),999);
+  }
+  const btnCls=ok&&recipe.length?'synth-btn-ready':'synth-btn-off';
+  el.innerHTML=`
+    <div><div class="synth-recipe-name" style="color:${tc}">${node.name}</div>
+    <div class="synth-recipe-tier" style="color:${tc}">${TIER_NAMES[node.tier]}</div>
+    <div class="synth-recipe-desc">${node.desc}</div></div>
+    <div class="synth-divider"></div>
+    <div class="synth-ing-title">REQUIRED INGREDIENTS</div>
+    <div>${ingHtml}</div>
+    <div class="synth-craft-area">
+      ${done?'<div class="synth-prev-badge">✓ PREVIOUSLY SYNTHESISED</div>':''}
+      ${recipe.length&&maxCraft>1?`<div style="font-family:\'Orbitron\',sans-serif;font-size:.45rem;letter-spacing:.12em;color:rgba(100,160,220,.4);text-align:right;margin-bottom:6px;">CAN CRAFT ×${maxCraft}</div>`:''}
+      <button class="synth-btn ${btnCls}" onclick="doCraft()" ${ok&&recipe.length?'':'disabled'}>SYNTHESISE</button>
+    </div>`;
+}
+
+let codexCache='';
+function renderCodex(){
+  const el=document.getElementById('codex-list');
+  const q='';
+  const byTier=Array.from({length:6},()=>[]);
+  CRAFT_NODES_RAW.forEach(n=>{ if(n.tier>0) byTier[n.tier].push(n); });
+  let h='';
+  for(let t=1;t<6;t++){
+    const items=byTier[t].filter(n=>!q||n.name.toLowerCase().includes(q));
+    if(!items.length) continue;
+    h+=`<div class="codex-tier-lbl" style="color:${TIER_COLORS[t]}">${TIER_NAMES[t]}</div>`;
+    items.forEach(n=>{
+      const ok=canCraft(n.id);
+      const done=crafted.has(n.id);
+      const sel=n.id===selRecipeId;
+      const dotCls=ok?'codex-status-dot dot-ready':'codex-status-dot dot-locked';
+      const check=done?'<span class="codex-check">✓</span>':'';
+      const cls='codex-item'+(sel?' codex-selected':'')+(done?' codex-crafted':'');
+      h+=`<div class="${cls}" onclick="selectRecipe('${n.id}')"><span class="${dotCls}"></span><span class="codex-name">${n.name}</span>${check}</div>`;
+    });
+  }
+  if(h!==codexCache){ el.innerHTML=h; codexCache=h; }
+}
+
+function renderCodexHighlight(){
+  // Only update selection classes without full re-render
+  document.querySelectorAll('.codex-item').forEach(el=>{
+    const id=el.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+    el.classList.toggle('codex-selected',id===selRecipeId);
+  });
+}
+
+// Main render loop — throttled to 4fps for DOM, supply runs at 500ms
+let lastRender=0;
+function gameLoop(ts){
+  requestAnimationFrame(gameLoop);
+  if(ts-lastRender < 250) return; // ~4fps cap
+  lastRender=ts;
+  if(!gameStarted) return;
+  renderInv();
+  if(synthDirty) renderSynth();
+  renderCodex();
+  updateTopBar();
+  if(tutorialActive) checkTutorialConditions();
+}
+
+// Supply tick at 300ms (independent of render)
+setInterval(tickSupply, 300);
+
+// ═══════════════════════════════════════════════════════════════════
+// ACHIEVEMENTS
+// ═══════════════════════════════════════════════════════════════════
+function checkAchievements(trigger,val){
+  ACHIEVEMENTS.forEach(ach=>{
+    if(earnedAch.has(ach.id)) return;
+    let earned=false;
+    if(ach.type==='craft'&&trigger==='craft'&&ach.val===val) earned=true;
+    else if(ach.type==='tier_complete'&&trigger==='craft'){
+      const tier=ach.val;
+      const tierNodes=CRAFT_NODES_RAW.filter(n=>n.tier===tier);
+      if(tierNodes.length&&tierNodes.every(n=>crafted.has(n.id))) earned=true;
+    } else if(ach.type==='inv_count'&&trigger==='craft'){
+      if((inventory[ach.val.id]||0)>=ach.val.qty) earned=true;
+    } else if(ach.type==='craft_count'&&trigger==='craft'){
+      if(crafted.size>=ach.val) earned=true;
+    } else if(ach.type==='craft_qty'&&trigger==='craft'){
+      if((inventory[ach.val.id]||0)>=ach.val.qty) earned=true;
+    } else if(ach.type==='ep_buy'&&trigger==='ep_buy'&&val>=ach.val) earned=true;
+    if(earned){
+      earnedAch.add(ach.id);
+      totalXP+=ach.xp;
+      achQueue.push(ach);
+      if(!achDisplaying) showNextAch();
+      document.getElementById('xp-val').textContent=totalXP.toLocaleString();
+    }
+  });
+}
+
+function showNextAch(){
+  if(!achQueue.length){ achDisplaying=false; return; }
+  achDisplaying=true;
+  const ach=achQueue.shift();
+  const el=document.createElement('div');
+  el.className='achievement-popup';
+  el.innerHTML=`<div class="ach-icon">${ach.icon}</div><div class="ach-body"><div class="ach-label">✦ Achievement Unlocked</div><div class="ach-title">${ach.title}</div><div class="ach-desc">${ach.desc}</div><div class="ach-xp">+${ach.xp.toLocaleString()} XP</div></div>`;
+  document.getElementById('achievement-container').appendChild(el);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+  setTimeout(()=>{ el.classList.remove('show'); el.classList.add('hide'); setTimeout(()=>{ el.remove(); showNextAch(); },400); },4500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MODAL HANDLERS
+// ═══════════════════════════════════════════════════════════════════
+function openGuide(){ document.getElementById('guide-modal').classList.add('open'); updateConsoleCounts(); renderGuide(); }
+function closeGuide(){ document.getElementById('guide-modal').classList.remove('open'); }
+
+function coTab(t){
+  document.querySelectorAll('.co-tab').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.co-tab-content').forEach(el=>el.classList.remove('active'));
+  document.getElementById('cotab-'+t).classList.add('active');
+  document.getElementById('co-tab-'+t).classList.add('active');
+}
+
+function updateConsoleCounts(){
+  document.getElementById('co-crafted-count').textContent=crafted.size;
+  let highTier=0;
+  CRAFT_NODES_RAW.forEach(n=>{ if(crafted.has(n.id)&&n.tier>highTier) highTier=n.tier; });
+  document.getElementById('co-tier-count').textContent=crafted.size>0?TIER_SHORT[highTier]:'—';
+}
+
+let guideRendered=false;
+function renderGuide(){
+  if(guideRendered) return;
+  guideRendered=true;
+  const el=document.getElementById('guide-scroll-content');
+  const byTier=Array.from({length:6},()=>[]);
+  CRAFT_NODES_RAW.forEach(n=>{ if(n.tier>0) byTier[n.tier].push(n); });
+  let h='<div style="text-align:center;padding:10px 0 14px;border-bottom:1px solid rgba(60,100,180,.15);margin-bottom:14px;"><div style="font-family:\'Orbitron\',sans-serif;font-size:.75rem;font-weight:700;letter-spacing:.2em;color:#a8d4f5;">A PRACTICAL GUIDE TO SYNTHESISING MATTER</div><div style="font-size:.58rem;color:rgba(120,170,220,.4);letter-spacing:.12em;margin-top:4px;">FROM QUARKS TO ECOSYSTEMS — GSA FIELD EDITION v4.1</div></div>';
+  for(let t=1;t<6;t++){
+    const tc=TIER_COLORS[t];
+    h+=`<div style="font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.16em;margin:12px 0 6px;color:${tc};padding:3px 6px;border-left:2px solid ${tc}40;">${TIER_NAMES[t].toUpperCase()}</div>`;
+    byTier[t].forEach(n=>{
+      h+=`<div class="guide-entry">
+        <span class="guide-entry-name">${n.name}</span>
+        <span class="guide-tier-badge" style="background:${tc}18;color:${tc};border:1px solid ${tc}30;">T${t}</span>
+        ${n.ing?`<span class="guide-entry-ing">${n.ing}</span>`:''}
+      </div>`;
+    });
+  }
+  el.innerHTML=h;
+}
+
+function openStats(){ document.getElementById('stats-modal').classList.add('open'); renderStats(); }
+function closeStats(){ document.getElementById('stats-modal').classList.remove('open'); }
+function statsTab(t){ /* only one tab currently; active state managed by CSS */ }
+
+function renderStats(){
+  document.getElementById('st-crafted').textContent=crafted.size;
+  document.getElementById('st-xp').textContent=totalXP.toLocaleString();
+  let highTier=0;
+  CRAFT_NODES_RAW.forEach(n=>{ if(crafted.has(n.id)&&n.tier>highTier) highTier=n.tier; });
+  document.getElementById('st-tier').textContent=crafted.size>0?TIER_SHORT[highTier]:'—';
+  // Tier bars
+  const tierColors_s=['#a0d8ff','#88eebb','#ffdd88','#ff99aa','#cc99ff','#ffbb77'];
+  let bars='';
+  for(let t=1;t<6;t++){
+    const tierNodes=CRAFT_NODES_RAW.filter(n=>n.tier===t);
+    const done=tierNodes.filter(n=>crafted.has(n.id)).length;
+    const pct=tierNodes.length?Math.round(done/tierNodes.length*100):0;
+    bars+=`<div class="tier-bar-row"><div class="tier-bar-label">${TIER_NAMES[t]}</div><div class="tier-bar-track"><div class="tier-bar-fill" style="width:${pct}%;background:${tierColors_s[t]}"></div></div><div class="tier-bar-count">${done}/${tierNodes.length}</div></div>`;
+  }
+  document.getElementById('tier-bars').innerHTML=bars;
+  // Achievements
+  const grid=document.getElementById('ach-grid');
+  grid.innerHTML='';
+  ACHIEVEMENTS.forEach(ach=>{
+    const earned=earnedAch.has(ach.id);
+    const el=document.createElement('div');
+    el.className='ach-card';
+    el.style.cssText=`background:${earned?'rgba(24,64,32,.28)':'rgba(8,16,26,.5)'};border:1px solid ${earned?'rgba(60,180,80,.28)':'rgba(40,60,90,.18)'};border-radius:7px;opacity:${earned?1:0.45};`;
+    el.innerHTML=`<div class="ach-card-icon" style="filter:${earned?'none':'grayscale(1) opacity(.45)'}">${ach.icon}</div><div class="ach-card-body"><div class="ach-card-title" style="color:${earned?'#aaffbb':'rgba(140,165,185,.5)'}">${ach.title}</div><div class="ach-card-desc" style="color:${earned?'rgba(165,210,175,.7)':'rgba(100,130,155,.4)'}">${ach.desc}</div><div class="ach-card-xp" style="color:${earned?'rgba(80,210,100,.55)':'rgba(60,80,105,.4)'}">${earned?'✓ EARNED':'LOCKED'} · +${ach.xp.toLocaleString()} XP</div></div>`;
+    grid.appendChild(el);
+  });
+}
+
+function openExchange(){
+  document.getElementById('ep-modal').classList.add('open');
+  renderEP();
+}
+function closeExchange(){ document.getElementById('ep-modal').classList.remove('open'); }
+
+function renderEP(){
+  document.getElementById('ep-xp-val').textContent=totalXP.toLocaleString();
+  const grid=document.getElementById('ep-grid');
+  grid.innerHTML='';
+  EP_ITEMS.forEach(item=>{
+    const owned=item.once&&purchasedUpgrades.has(item.id);
+    const afford=totalXP>=item.cost;
+    const el=document.createElement('div');
+    el.className='ep-card'+((!afford&&!owned)?' cant-afford':'');
+    el.onclick=()=>{ if(!owned&&afford) buyEP(item); };
+    el.innerHTML=`
+      ${owned?'<div class="ep-owned-badge">OWNED</div>':''}
+      <div class="ep-icon">${item.icon}</div>
+      <div class="ep-name">${item.name}</div>
+      <div class="ep-desc">${item.desc}</div>
+      <div class="ep-cost">${owned?'PERMANENT UPGRADE':'⬡ '+item.cost.toLocaleString()+' XP'}</div>`;
+    grid.appendChild(el);
+  });
+}
+
+function buyEP(item){
+  if(totalXP<item.cost) return;
+  totalXP-=item.cost;
+  epBuyCount++;
+  checkAchievements('ep_buy',epBuyCount);
+  if(item.type==='particles'&&item.give){
+    Object.entries(item.give).forEach(([id,qty])=>{ inventory[id]=(inventory[id]||0)+qty; });
+    if(item.bonus==='overdrive') supplyBoostEnd=performance.now()+60000;
+    invDirty=true;
+  }
+  if(item.type==='timed'){
+    if(item.effect==='overdrive') supplyBoostEnd=performance.now()+item.duration;
+    if(item.effect==='yield') doubleYieldEnd=performance.now()+item.duration;
+    checkAchievements('ep_timed',item.effect);
+  }
+  if(item.type==='upgrade'){
+    if(item.once) purchasedUpgrades.add(item.id);
+    if(item.effect==='cap_boost') SUPPLY_CAP=120;
+    if(item.effect==='fast_supply') supplyRateMult=1.5;
+  }
+  document.getElementById('xp-val').textContent=totalXP.toLocaleString();
+  renderEP();
+}
+
+// ─── Council Modal ────────────────────────────────────────────────────
+const COUNCIL_MEMBERS=[
+  {id:'voss', name:'Director Voss', title:'Mission Commander · GSA High Command', emoji:'👩‍🚀',
+   topics:[
+     {label:'The mission',         text:'Your goal is to recreate the entire chain of cosmic evolution — from the smallest building blocks of matter to a living, breathing biosphere. Every particle you see on the Supply Bench is a fundamental ingredient. Nothing in the universe is built from anything smaller.'},
+     {label:'Four forces',         text:'There are four fundamental forces binding everything together: gravity shapes galaxies; electromagnetism holds atoms and molecules; the strong nuclear force locks quarks inside protons; and the weak nuclear force drives radioactive decay and powers the sun. All four are at work in your crafting.'},
+     {label:'The Big Bang',        text:'The universe began with a Big Bang roughly 13.8 billion years ago. In the first fractions of a second, quarks and gluons condensed from raw energy. Within 3 minutes, protons and neutrons fused into the first atomic nuclei. It took another 380,000 years before electrons joined them as atoms. You are re-running that clock.'},
+     {label:'Emergence',           text:'Progress feels slow at first because the foundations are the hardest. Once you reach molecules, complexity compounds. Once you reach biology, it accelerates beyond anything you can predict. That is emergence — the whole becomes greater than the sum of its parts.'},
+     {label:'What we\'re made of', text:'Every atom in this garden, in your body, in the stars outside — was forged in the same crucible you are working in now. We are not building something artificial. We are repeating the oldest process in the cosmos.'},
+   ]},
+  {id:'venn', name:'Dr. Elara Venn', title:'Lead Physicist · Elementary Particles', emoji:'🔬',
+   topics:[
+     {label:'Quarks',              text:'The quarks are your most fundamental ingredients. There are six flavours but only two matter for everyday matter: the Up Quark carries an electric charge of +2/3, and the Down Quark carries -1/3. Three quarks bound together by Gluons form a Proton (2 Up + 1 Down) or a Neutron (1 Up + 2 Down).'},
+     {label:'Gluons',              text:'Gluons carry the strong nuclear force — the most powerful force in nature at short range. They are the glue between quarks, and without them, every proton and neutron in the universe would instantly dissolve. You cannot build anything nuclear without them. They are your most critical Tier 0 ingredient.'},
+     {label:'Electrons',           text:'The Electron is a lepton, not a quark — it is elementary and indivisible. It carries exactly -1 charge, which is why one electron perfectly balances one proton. When electrons surround a nucleus, you get an atom. When atoms share electrons, you get a chemical bond. The electron underpins all of chemistry.'},
+     {label:'Photons',             text:'Photons carry the electromagnetic force. They are massless, travel at the speed of light, and are responsible for all light, heat, and electromagnetic radiation. When electrons in atoms drop to lower energy levels, they emit photons. Your Photon supply enables synthesis reactions that require energy input.'},
+     {label:'Electron Neutrino',   text:'The Electron Neutrino is ghostly — it barely interacts with ordinary matter and has almost no mass. But it is essential to beta decay, the process by which neutrons convert to protons inside stars. Without neutrinos, stellar fusion stalls. They are rare in your supply for good reason: they are rare in the universe too.'},
+   ]},
+  {id:'caelum', name:'Prof. Idris Caelum', title:'Senior Physicist · Nuclear Structure', emoji:'⚛️',
+   topics:[
+     {label:'Proton vs Neutron',   text:'A Proton is 2 Up Quarks + 1 Down Quark held together by Gluons. A Neutron is 1 Up + 2 Down. They are nearly identical in mass — but the neutron is electrically neutral, which is essential: without neutrons, atomic nuclei above hydrogen could not exist, because identical positive charges repel each other too strongly.'},
+     {label:'Binding energy',      text:'Nuclear binding energy is what makes atoms stable. When protons and neutrons combine into a nucleus, the result weighs slightly less than the parts separately. That missing mass is released as energy — this is the E=mc² you have heard about. Helium-4 (the Alpha Particle) is especially stable, which is why you can use it as a building block for heavier nuclei.'},
+     {label:'Hydrogen',            text:'Hydrogen is just a lone proton with one electron. It is the simplest atom and the most abundant in the universe — about 75% of all ordinary matter. The Hydrogen atom is your gateway from nuclear physics to chemistry. Without it, nothing above Tier 1 is possible.'},
+     {label:'Deuterium',           text:'Deuterium is a heavier isotope of hydrogen: one proton and one neutron in the nucleus, one electron orbiting it. It is the first step toward helium fusion and is critical for the synthesis of heavier atoms. In the real universe, Deuterium was formed in the first 3 minutes after the Big Bang.'},
+     {label:'Helium fusion',       text:'Helium is formed when four hydrogen nuclei fuse — two protons and two neutrons — releasing enormous energy. This is the reaction that powers every star, including our sun. In stellar cores, the pressure and temperature are so extreme that hydrogen nuclei overcome their electromagnetic repulsion and fuse. The result is the helium that fills your gas giants.'},
+   ]},
+  {id:'mirshad', name:'Dr. Sona Mirshad', title:'Molecular Physicist · Chemistry Division', emoji:'🧪',
+   topics:[
+     {label:'Carbon chemistry',    text:'Chemistry begins when electrons are shared between atoms — this is the covalent bond. Carbon is the master of covalent bonding: it has four bonding sites and can form chains, rings, and branching structures of almost unlimited complexity. No other element comes close. Carbon is the reason organic chemistry exists.'},
+     {label:'Water',               text:'Water (H₂O) is two hydrogen atoms bonded to one oxygen. The oxygen pulls the shared electrons toward itself, making one end slightly negative and the other slightly positive. This polarity means water molecules stick to each other — and to almost everything else. Water is the universal solvent, the medium of all biochemistry. Without its polarity, life as we know it is impossible.'},
+     {label:'Glucose',             text:'Glucose (C₆H₁₂O₆) is the primary fuel of life. It stores chemical energy in its bonds, and cells release that energy through respiration. It also provides the carbon scaffold that cells use to build everything else — membranes, proteins, DNA. If water is the ocean of life, glucose is the tide that moves through it.'},
+     {label:'Amino Acids',         text:'Amino acids are the monomers of proteins. Each one has a central carbon, an amino group (NH₂), a carboxyl group (COOH), and a variable side-chain that gives it its unique chemical personality. There are 20 standard amino acids in biology. Your recipe uses a simplified version — but the principle is the same: combine them correctly and they fold into functional proteins.'},
+     {label:'DNA',                 text:'DNA is the information molecule. It stores the instructions for building every protein in a living organism using an alphabet of just four chemical bases: adenine, thymine, guanine, and cytosine. The order of those bases encodes everything. One strand of human DNA, uncoiled, is about 2 metres long — and it fits inside a nucleus 6 micrometres across.'},
+   ]},
+  {id:'orren', name:'Master Physicist T. Orren', title:'Master Physicist · Complexity & Emergence', emoji:'🌿',
+   topics:[
+     {label:'Emergence',           text:'Emergence is the phenomenon where complex behaviour arises from simple rules. A single water molecule is not wet. A single neuron does not think. A single amino acid is not alive. But assemble enough of them correctly, and wetness, thought, and life appear. Your entire mission is a demonstration of emergence.'},
+     {label:'Cell membrane',       text:'The cell membrane is what separates life from chemistry. Phospholipids spontaneously organise into a bilayer — a self-sealing barrier that controls what enters and exits the cell. This self-organisation is not magic; it follows directly from the polar chemistry of the molecules. But the result — a protected interior where metabolism can occur — is revolutionary.'},
+     {label:'Prokaryotes',         text:'A Prokaryote is the first true cell. No nucleus, no complex internal structures, but a complete system: a membrane, genetic material, ribosomes to build proteins, and metabolism to generate energy. Bacteria are prokaryotes. They appeared on Earth roughly 3.5 billion years ago and survived everything the planet threw at them.'},
+     {label:'Eukaryotes',          text:'The Eukaryote is the next great leap — a cell with a nucleus housing its DNA, and specialised compartments called organelles. The mitochondria that power eukaryotic cells are thought to have once been independent bacteria, swallowed and kept alive. Endosymbiosis: one organism living inside another, to mutual benefit. All plants, animals, and fungi are built from eukaryotic cells.'},
+     {label:'Ecosystems',          text:'An ecosystem is not a collection of organisms — it is a web of relationships. Energy flows from the sun through producers to consumers to decomposers. Nutrients cycle through soil, water, and atmosphere. Remove one thread and the web weakens. Build enough threads and it sustains itself. That is your ultimate goal: not just life, but a self-sustaining living system.'},
+   ]},
+  {id:'rin', name:'Physicist Rin', title:'Junior Physicist · Quantum Mechanics', emoji:'✨',
+   topics:[
+     {label:'Superposition',       text:'Quantum mechanics says that until you observe a particle, it exists in a superposition of all possible states simultaneously. The act of measurement forces it to choose. Your crafting bench is, in a very real sense, performing quantum measurement — collapsing probability into a specific particle. Yes, I think about this too much.'},
+     {label:'Quantum tunnelling',  text:'Quantum tunnelling is why the sun shines. At the temperature of the solar core, classical physics says protons should not have enough energy to overcome their electromagnetic repulsion and fuse. But quantum mechanics allows particles to tunnel through energy barriers they classically could not cross. Without tunnelling, fusion would stop and every star in the universe would go dark.'},
+     {label:'Pauli Exclusion',     text:'The Pauli Exclusion Principle states that no two identical fermions — particles with half-integer spin, like electrons — can occupy the same quantum state. This is why electrons fill shells in atoms rather than all collapsing to the lowest energy level. It is the reason chemistry is complex rather than trivial, and why matter is solid.'},
+     {label:'Uncertainty',         text:'Heisenberg\'s Uncertainty Principle tells us that the more precisely you know a particle\'s position, the less precisely you can know its momentum, and vice versa. This is not a measurement limitation — it is a fundamental property of nature. Particles genuinely do not have precise position and momentum simultaneously. The universe is, at its base level, fuzzy.'},
+     {label:'Wave-particle',       text:'Wave-particle duality means every particle is also a wave, and every wave is also a particle. Electrons diffract through double slits like waves. Photons are absorbed one-at-a-time like particles. This dual nature is not a paradox — it is simply a feature of quantum reality that has no analogy in the everyday world. Our intuitions were built for objects much larger than atoms.'},
+   ]},
+  {id:'marek', name:'Physicist Marek', title:'Applied Physicist · Engineering Systems', emoji:'🔧',
+   topics:[
+     {label:'Supply conduit',      text:'The conduit running from the Supply Bench to the Crafting Island uses electromagnetic fields to stabilise particles during transport. Charged particles left to drift would interact with each other and decay before arriving. The field alignment keeps them coherent. This is the same principle behind particle accelerators and magnetic fusion reactors.'},
+     {label:'Conservation laws',   text:'Conservation laws are the engineer\'s best friends. Energy is conserved — you cannot create or destroy it, only transform it. Charge is conserved — every synthesis must balance positive and negative charge. Baryon number is conserved — every proton or neutron you make requires a corresponding input. If a recipe fails, check your conservation balances first.'},
+     {label:'W Boson',             text:'The W Boson mediates the weak nuclear force — the force responsible for radioactive beta decay, where a neutron converts to a proton by emitting an electron and an antineutrino. This process is how stars regulate their nuclear burning and how heavy elements are built during supernova explosions. The W Boson is rare but essential for transitions between particle types.'},
+     {label:'Exotic quarks',       text:'Strange Quarks and Charm Quarks are heavier, unstable cousins of the Up and Down quarks. They exist only briefly in extreme conditions — inside particle accelerators or cosmic ray impacts. In your crafting, they enable exotic intermediate compounds that would not form from ordinary matter. Think of them as catalysts for reactions that ordinary chemistry cannot reach.'},
+     {label:'Activation energy',   text:'Every synthesis reaction has an activation energy — a minimum energy input required to start the process, even if the end result releases more energy than it consumed. Photons in your inventory provide this activation energy for many reactions. If a synthesis is stalling, check whether you have sufficient Photon stock. Light is not just illumination — it is a reactant.'},
+   ]},
+];
+
+let councilActiveNpc=null, cdlgIdx=0;
+
+function openCouncil(){
+  const modal=document.getElementById('council-modal');
+  modal.classList.add('open');
+  renderCouncilNpcs();
+}
+function closeCouncil(){
+  document.getElementById('council-modal').classList.remove('open');
+  closeDlg();
+}
+function councilTab(t){ /* only npcs tab now */ }
+
+function renderCouncilNpcs(){
+  const grid=document.getElementById('council-npc-grid');
+  if(!grid) return;
+  grid.innerHTML='';
+  COUNCIL_MEMBERS.forEach(npc=>{
+    const card=document.createElement('div');
+    card.className='council-npc-card';
+    card.innerHTML=`<div style="font-size:2rem;">${npc.emoji}</div>`
+      +`<div style="font-family:'Orbitron',sans-serif;font-size:.58rem;font-weight:700;letter-spacing:.1em;color:#a0e8b0;">${npc.name}</div>`
+      +`<div style="font-size:.52rem;color:rgba(100,190,120,.5);font-weight:300;line-height:1.4;">${npc.title}</div>`
+      +`<div style="font-size:.6rem;color:rgba(120,210,140,.65);margin-top:4px;">${npc.topics.length} topics ▶</div>`;
+    card.onclick=()=>openDlg(npc);
+    grid.appendChild(card);
+  });
+  closeDlg();
+}
+
+function openDlg(npc){
+  councilActiveNpc=npc;
+  cdlgIdx=0;
+  document.querySelectorAll('.council-npc-card').forEach(c=>c.classList.remove('active-card'));
+  // Mark the clicked card active
+  const cards=document.querySelectorAll('.council-npc-card');
+  const idx=COUNCIL_MEMBERS.indexOf(npc);
+  if(cards[idx]) cards[idx].classList.add('active-card');
+  const panel=document.getElementById('council-dlg-panel');
+  panel.style.display='block';
+  document.getElementById('cdlg-portrait').textContent=npc.emoji;
+  document.getElementById('cdlg-name').textContent=npc.name;
+  document.getElementById('cdlg-title').textContent=npc.title;
+  showDlgTopic(0);
+}
+
+function closeDlg(){
+  councilActiveNpc=null;
+  const panel=document.getElementById('council-dlg-panel');
+  if(panel) panel.style.display='none';
+  document.querySelectorAll('.council-npc-card').forEach(c=>c.classList.remove('active-card'));
+}
+
+function showDlgTopic(i){
+  if(!councilActiveNpc) return;
+  const topics=councilActiveNpc.topics;
+  cdlgIdx=Math.max(0,Math.min(i,topics.length-1));
+  const topic=topics[cdlgIdx];
+  document.getElementById('cdlg-text').innerHTML=
+    `<div style="font-family:'Orbitron',sans-serif;font-size:.52rem;letter-spacing:.12em;color:rgba(100,220,140,.65);margin-bottom:8px;">${topic.label.toUpperCase()}</div>`
+    +`<div>${topic.text}</div>`;
+  document.getElementById('cdlg-counter').textContent=`${cdlgIdx+1} / ${topics.length}`;
+  document.getElementById('cdlg-prev').disabled=(cdlgIdx===0);
+  document.getElementById('cdlg-next').disabled=(cdlgIdx===topics.length-1);
+}
+
+function cdlgPrev(){ showDlgTopic(cdlgIdx-1); }
+function cdlgNext(){ showDlgTopic(cdlgIdx+1); }
+
+// ─── Endgame ─────────────────────────────────────────────────────────
+let egAnimFrame=null;
+const EG_COUNCIL=[
+  {emoji:'👩‍🚀',name:'Director Voss',   msg:'I always knew you had it in you. The cosmos agrees.'},
+  {emoji:'🔬',name:'Dr. Venn',        msg:'From quarks to ecosystems. Every equation balanced.'},
+  {emoji:'⚛️',name:'Prof. Caelum',    msg:'The proton is still the workhorse. You just proved it.'},
+  {emoji:'🧪',name:'Dr. Mirshad',     msg:'Carbon bonded with everything. Of course it did.'},
+  {emoji:'🌿',name:'T. Orren',        msg:'Emergence achieved. The whole exceeded the sum.'},
+  {emoji:'✨',name:'Physicist Rin',   msg:'Superposition collapsed into a world. Quantum confirmed.'},
+];
+
+// ─── CHNOPS Secret ──────────────────────────────────────────────────
+// Puzzle: enter Loganin molecular formula (C17H26O10) — no hints given.
+// On solve: unlock all recipes, achievements, EP items, 10x inventory, beat game.
+let chnopsOpen=false;
+let chnopsKeyBuffer='';
+const CHNOPS_TARGET='C17H26O10';
+
+function chnopsDetect(k){
+  if(!gameStarted||chnopsOpen) return;
+  const order='CHNOPS';
+  chnopsKeyBuffer=(chnopsKeyBuffer+k.toUpperCase()).slice(-6);
+  if(chnopsKeyBuffer===order){
+    chnopsOpen=true;
+    document.getElementById('chnops-overlay').classList.add('open');
+    const inp=document.getElementById('chnops-input');
+    inp.value='';inp.className='';
+    document.getElementById('chnops-feedback').textContent='';
+    document.getElementById('chnops-feedback').className='';
+    setTimeout(()=>inp.focus(),80);
+    chnopsKeyBuffer='';
+  }
+}
+function closeChnops(){
+  chnopsOpen=false;
+  document.getElementById('chnops-overlay').classList.remove('open');
+  chnopsKeyBuffer='';
+}
+function chnopsKey(e){
+  if(e.key==='Escape'){closeChnops();return;}
+  if(e.key==='Enter'){
+    e.preventDefault();
+    const inp=document.getElementById('chnops-input');
+    const val=inp.value.trim();
+    if(val.toUpperCase()===CHNOPS_TARGET.toUpperCase()){
+      chnopsSolve();
+    } else {
+      inp.classList.remove('shake');void inp.offsetWidth;inp.classList.add('shake');
+      const fb=document.getElementById('chnops-feedback');
+      fb.textContent='Incorrect. Recalculate.';fb.className='';
+      setTimeout(()=>{inp.classList.remove('shake');inp.value='';},440);
+    }
+  }
+}
+
+function chnopsSolve(){
+  const inp=document.getElementById('chnops-input');
+  inp.classList.add('solved');
+  const fb=document.getElementById('chnops-feedback');
+  fb.textContent='C17H26O10. Correct. Unlocking everything...';
+  fb.className='success';
+
+  // 1. Unlock all crafted recipes
+  CRAFT_NODES_RAW.forEach(n=>{if(n.tier>0) crafted.add(n.id);});
+
+  // 2. Grant all achievements + XP
+  ACHIEVEMENTS.forEach(ach=>{
+    if(!earnedAch.has(ach.id)){earnedAch.add(ach.id);totalXP+=ach.xp;}
+  });
+
+  // 3. Grant all EP upgrades
+  EP_ITEMS.forEach(item=>{
+    if(item.once) purchasedUpgrades.add(item.id);
+    if(item.effect==='cap_boost') SUPPLY_CAP=120;
+    if(item.effect==='fast_supply'&&!purchasedUpgrades.has('_chnops_supply')){
+      Object.keys(SUPPLY_RATE_BASE).forEach(k=>{if(SUPPLY_RATE_BASE[k]) SUPPLY_RATE_BASE[k]*=1.5;});
+      purchasedUpgrades.add('_chnops_supply');
+    }
+  });
+
+  // 4. Give 10 of every craftable item
+  CRAFT_NODES_RAW.forEach(n=>{if(n.tier>0) inventory[n.id]=(inventory[n.id]||0)+10;});
+
+  // 5. Bonus XP
+  totalXP+=99999;
+
+  // 6. Mark NEW WORLD crafted and trigger win cutscene
+  crafted.add('n48');inventory['n48']=(inventory['n48']||0)+1;
+  invDirty=true;codexDirty=true;synthDirty=true;
+
+  setTimeout(()=>{
+    closeChnops();
+    // Achievement popup
+    const container=document.getElementById('achievement-container');
+    const el=document.createElement('div');
+    el.className='achievement-popup';
+    el.innerHTML='<div class="ach-icon">🧬</div>'
+      +'<div class="ach-body">'
+      +'<div class="ach-label">★ PROTOCOL UNLOCKED</div>'
+      +'<div class="ach-title">CHNOPS PROTOCOL SOLVED</div>'
+      +'<div class="ach-desc">You identified Loganin (C17H26O10). The Aurora\'s secrets are yours.</div>'
+      +'<div class="ach-xp">+99,999 XP</div>'
+      +'</div>';
+    container.appendChild(el);
+    requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList.add('show')));
+    setTimeout(()=>{el.classList.remove('show');el.classList.add('hide');setTimeout(()=>el.remove(),420);},6500);
+  },1800);
+
+  // 7. Trigger planet cutscene then endgame after short delay
+  setTimeout(showEndGameCutscene,2200);
+}
+
+// ─── WIN SEQUENCE ────────────────────────────────────────────────────
+let endgameShown=false;
+function showEndGameCutscene(){
+  if(endgameShown) return;
+  endgameShown=true;
+  _showEndgameOverlay();
+}
+
+function _showEndgameOverlay(){
+  const ov=document.getElementById('endgame-overlay');
+  ov.classList.add('show');
+  const msgsEl=document.getElementById('eg-council-msgs');
+  msgsEl.innerHTML='';
+  EG_COUNCIL.forEach(m=>{
+    const d=document.createElement('div');
+    d.className='eg-npc-msg';
+    d.innerHTML=`<span class="eg-npc-icon">${m.emoji}</span><div><div class="eg-npc-name">${m.name}</div>${m.msg}</div>`;
+    msgsEl.appendChild(d);
+  });
+  document.getElementById('eg-xp-display').textContent='TOTAL XP: '+totalXP.toLocaleString();
+  const canvas=document.getElementById('eg-canvas');
+  canvas.width=innerWidth;canvas.height=innerHeight;
+  const ctx=canvas.getContext('2d');
+  const COLORS=['#88ffcc','#44aaff','#ffdd88','#ff88cc','#aaffbb','#ffaa44','#cc99ff'];
+  const particles=Array.from({length:220},()=>({
+    x:Math.random()*canvas.width,y:Math.random()*canvas.height-canvas.height,
+    vx:(Math.random()-.5)*3.5,vy:Math.random()*2.5+1.0,
+    size:Math.random()*7+2,col:COLORS[Math.floor(Math.random()*COLORS.length)],
+    rot:Math.random()*Math.PI*2,rotV:(Math.random()-.5)*.18,
+    shape:Math.random()>.5?'rect':'circle',alpha:Math.random()*.5+.5
+  }));
+  let bursts=[],lastBurst=-999;
+  function spawnBurst(t){
+    const n=28+Math.floor(Math.random()*20);
+    const x=canvas.width*.15+Math.random()*canvas.width*.7;
+    const y=canvas.height*.1+Math.random()*canvas.height*.5;
+    const col=COLORS[Math.floor(Math.random()*COLORS.length)];
+    const sparks=Array.from({length:n},(_,k)=>{
+      const a=k/n*Math.PI*2+Math.random()*.3,s=Math.random()*4.5+1.5;
+      return{x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1};
+    });
+    bursts.push({sparks,col,t});
+  }
+  function egLoop(ts){
+    const t=ts/1000;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const grad=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,canvas.width*.7);
+    grad.addColorStop(0,'rgba(5,18,42,.95)');grad.addColorStop(1,'rgba(0,0,0,.98)');
+    ctx.fillStyle=grad;ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle='rgba(255,255,255,.35)';
+    for(let s=0;s<120;s++){const sx=((s*1237+ts*.01)%canvas.width),sy=((s*883)%canvas.height),ss=((s*331)%2)+.5;ctx.beginPath();ctx.arc(sx,sy,ss,0,Math.PI*2);ctx.fill();}
+    if(t-lastBurst>0.7+Math.random()*.5){spawnBurst(t);lastBurst=t;}
+    bursts.forEach(b=>{b.sparks.forEach(sp=>{sp.x+=sp.vx;sp.y+=sp.vy;sp.vy+=.08;sp.life-=.018;if(sp.life>0){ctx.globalAlpha=sp.life*.85;ctx.fillStyle=b.col;ctx.beginPath();ctx.arc(sp.x,sp.y,2.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;}});});
+    bursts=bursts.filter(b=>b.sparks.some(sp=>sp.life>0));
+    particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.rot+=p.rotV;if(p.y>canvas.height+20){p.y=-20;p.x=Math.random()*canvas.width;}ctx.save();ctx.globalAlpha=p.alpha;ctx.translate(p.x,p.y);ctx.rotate(p.rot);ctx.fillStyle=p.col;if(p.shape==='rect')ctx.fillRect(-p.size/2,-p.size/4,p.size,p.size/2);else{ctx.beginPath();ctx.arc(0,0,p.size/2,0,Math.PI*2);ctx.fill();}ctx.restore();});
+    const pulse=.7+.3*Math.sin(t*1.4);
+    const pg=ctx.createRadialGradient(canvas.width/2,canvas.height/2,0,canvas.width/2,canvas.height/2,180*pulse);
+    pg.addColorStop(0,`rgba(80,200,140,${.12*pulse})`);pg.addColorStop(.5,`rgba(40,120,200,${.07*pulse})`);pg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pg;ctx.fillRect(0,0,canvas.width,canvas.height);
+    egAnimFrame=requestAnimationFrame(egLoop);
+  }
+  egAnimFrame=requestAnimationFrame(egLoop);
+}
+
+function closeEndgame(){
+  if(egAnimFrame) cancelAnimationFrame(egAnimFrame);
+  const ov=document.getElementById('endgame-overlay');
+  ov.style.opacity='0';ov.style.transition='opacity 1s ease';
+  setTimeout(()=>{
+    ov.classList.remove('show');ov.style.opacity='';ov.style.transition='';
+  },1000);
+}
+
+window.addEventListener('resize',()=>{
+  if(document.getElementById('endgame-overlay').classList.contains('show')){
+    const canvas=document.getElementById('eg-canvas');
+    canvas.width=innerWidth;canvas.height=innerHeight;
+  }
+});
+
+// ─── Keyboard ────────────────────────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(e.key&&e.key.length===1) chnopsDetect(e.key);
+  if(e.code==='Escape'){
+    if(document.getElementById('guide-modal').classList.contains('open')) closeGuide();
+    if(document.getElementById('stats-modal').classList.contains('open')) closeStats();
+    if(document.getElementById('ep-modal').classList.contains('open')) closeExchange();
+    if(chnopsOpen) closeChnops();
+  }
+});
+
+// ─── OPENING CUTSCENE ────────────────────────────────────────────────
+const sceneCanvas=document.getElementById('scene-canvas');
+const ctx2d=sceneCanvas.getContext('2d');
+let sceneIndex=0, sceneAnimFrame=null, sceneAutoTimer=null;
+
+const scenes=[
+  {location:"EARTH — YEAR 2157 — MIDTOWN UNIVERSITY, 11:48 PM",speaker:"",duration:7500,
+   text:"You are a young scientist burning the midnight oil in your cramped university lab. Your research on particle theory has been turning heads across the galaxy...",draw:drawScene1},
+  {location:"UNIVERSITY LAB — INCOMING TRANSMISSION",speaker:"COMPUTER",duration:6000,
+   text:"\"INCOMING PRIORITY MESSAGE — SENDER: GALACTIC SCIENCE ADMINISTRATION — CLASSIFICATION: URGENT\"",draw:drawScene2},
+  {location:"GSA TRANSMISSION — DIRECTOR VOSS",speaker:"Director Voss",duration:8000,
+   text:"\"Hello, Scientist! I'm Director Voss of the GSA. Your particle research has caught our attention. We have a mission that could make history — and we want YOU for it. Report to Launch Bay 7 at dawn!\"",draw:drawScene3},
+  {location:"EARTH ORBIT — DAWN DEPARTURE",speaker:"",duration:7500,
+   text:"With your bags barely packed and your mind racing with possibilities, you board the GSA shuttle as the sun rises. Earth shrinks in the viewport. You're really doing this.",draw:drawScene4},
+  {location:"DEEP SPACE — 3 DAYS LATER",speaker:"",duration:7500,
+   text:"After three days of travel the pilot's voice crackles overhead: \"Take a look out the starboard window. That big, beautiful ship? That's the Aurora. Welcome home.\"",draw:drawScene5},
+  {location:"GSA RESEARCH VESSEL AURORA — DOCKING BAY",speaker:"Director Voss",duration:7000,
+   text:"\"Welcome aboard! The lab is ready, the equipment is calibrated, and the universe is waiting. Everything you need to Remake the World is right here. Shall we begin?\"",draw:drawScene6},
+];
+
+const sceneProgressEl=document.getElementById('scene-progress');
+scenes.forEach((_,i)=>{
+  const d=document.createElement('div');
+  d.className='scene-dot'; d.id='sdot-'+i; sceneProgressEl.appendChild(d);
+});
+
+function scStars(t,n){
+  n=n||150;
+  for(let i=0;i<n;i++){
+    const s=i*137.5;
+    const x=(Math.sin(s)*.5+.5)*sceneCanvas.width;
+    const y=(Math.cos(s*1.3)*.5+.5)*sceneCanvas.height;
+    const r=(Math.sin(s*3)*.5+.5)*1.4+.3;
+    const tw=.5+.5*Math.sin(t*2+s);
+    ctx2d.beginPath();ctx2d.arc(x,y,r,0,Math.PI*2);
+    ctx2d.fillStyle=`rgba(255,255,255,${tw*.85})`;ctx2d.fill();
+  }
+}
+function scScanlines(){
+  for(let y=0;y<sceneCanvas.height;y+=3){
+    ctx2d.fillStyle='rgba(0,0,0,0.08)';ctx2d.fillRect(0,y,sceneCanvas.width,1);
+  }
+}
+
+function drawScene1(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx2d.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#03090f');bg.addColorStop(1,'#08151f');
+  ctx2d.fillStyle=bg;ctx2d.fillRect(0,0,W,H);
+  ctx2d.fillStyle='#050d18';ctx2d.fillRect(W*.63,H*.08,W*.24,H*.34);
+  for(let i=0;i<36;i++){
+    const s=i*47.1;
+    const bx=W*.64+(Math.sin(s)*.5+.5)*W*.22,by=H*.12+(Math.cos(s*1.6)*.5+.5)*H*.27;
+    ctx2d.fillStyle=`rgba(255,215,110,${(.4+.6*Math.sin(t*1.3+s))*.7})`;
+    ctx2d.fillRect(bx,by,W*.005,H*.007);
+  }
+  ctx2d.strokeStyle='#182838';ctx2d.lineWidth=6;ctx2d.strokeRect(W*.63,H*.08,W*.24,H*.34);
+  ctx2d.fillStyle='#0e1d2c';ctx2d.fillRect(W*.08,H*.56,W*.84,H*.38);
+  ctx2d.fillStyle='#152534';ctx2d.fillRect(W*.08,H*.54,W*.84,H*.03);
+  const mg=ctx2d.createRadialGradient(W*.45,H*.37,0,W*.45,H*.37,W*.22);
+  mg.addColorStop(0,'rgba(40,100,220,.28)');mg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=mg;ctx2d.fillRect(0,0,W,H);
+  ctx2d.fillStyle='#0b1a2a';ctx2d.fillRect(W*.3,H*.2,W*.3,H*.32);
+  const sc=ctx2d.createLinearGradient(W*.32,H*.22,W*.32,H*.48);
+  sc.addColorStop(0,'#001326');sc.addColorStop(1,'#00274c');
+  ctx2d.fillStyle=sc;ctx2d.fillRect(W*.32,H*.22,W*.26,H*.27);
+  const lines=['> particle_sim.run()','  mass: 0.000511 MeV','  charge: -1','  spin: 1/2','> quark_bind(u,u,d)','  energy: stable','> PROTON FORMED ✓'];
+  ctx2d.font=`${W*.009}px monospace`;ctx2d.textAlign='left';
+  lines.forEach((l,i)=>{
+    const a=i===lines.length-1?(0.7+0.3*Math.sin(t*3)):0.52;
+    ctx2d.fillStyle=i===lines.length-1?`rgba(100,195,255,${a})`:`rgba(75,150,220,0.5)`;
+    ctx2d.fillText(l,W*.334,H*.254+i*H*.029);
+  });
+  scScanlines();
+}
+
+function drawScene2(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  drawScene1(t*.18+4);
+  ctx2d.fillStyle=`rgba(190,25,0,${.09+.06*Math.sin(t*4)})`;ctx2d.fillRect(0,0,W,H);
+  const pw=W*.47,ph=H*.45,px=(W-pw)/2,py=(H-ph)/2-H*.04;
+  ctx2d.fillStyle='rgba(2,8,20,.96)';ctx2d.fillRect(px,py,pw,ph);
+  ctx2d.strokeStyle=`rgba(80,165,255,${.6+.4*Math.sin(t*3)})`;ctx2d.lineWidth=2;ctx2d.strokeRect(px,py,pw,ph);
+  const cx=W/2,cy=py+ph*.28;
+  ctx2d.beginPath();ctx2d.arc(cx,cy,pw*.105,0,Math.PI*2);ctx2d.strokeStyle='#55aaff';ctx2d.lineWidth=2;ctx2d.stroke();
+  ctx2d.save();ctx2d.translate(cx,cy);ctx2d.rotate(t*.9);
+  for(let i=0;i<8;i++){
+    const a=i/8*Math.PI*2;
+    ctx2d.beginPath();ctx2d.arc(Math.cos(a)*pw*.082,Math.sin(a)*pw*.082,pw*.009,0,Math.PI*2);
+    ctx2d.fillStyle='#55aaff';ctx2d.fill();
+  }
+  ctx2d.restore();
+  ctx2d.font=`bold ${W*.013}px 'Orbitron',sans-serif`;ctx2d.textAlign='center';
+  ctx2d.fillStyle='#7ac4ff';ctx2d.fillText('GSA',cx,cy+4);
+  ctx2d.font=`${W*.009}px monospace`;ctx2d.fillStyle='rgba(110,185,255,.8)';
+  ctx2d.fillText('GALACTIC SCIENCE ADMINISTRATION',cx,py+ph*.48);
+  ctx2d.fillStyle=Math.sin(t*3)>0?'#ff6633':'#ffaa55';
+  ctx2d.font=`${W*.008}px 'Orbitron',sans-serif`;
+  ctx2d.fillText('⚠  PRIORITY TRANSMISSION  ⚠',cx,py+ph*.63);
+  ctx2d.fillStyle='rgba(150,195,255,.4)';ctx2d.font=`${W*.0072}px monospace`;
+  ctx2d.fillText('ENCRYPTION: LEVEL 9  —  ORIGIN: AURORA VESSEL',cx,py+ph*.79);
+  ctx2d.textAlign='left';
+}
+
+function drawScene3(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx2d.fillStyle='#020609';ctx2d.fillRect(0,0,W,H);
+  for(let i=0;i<6;i++){
+    const ly=(H*.1+i*H*.12+t*25)%H;
+    ctx2d.fillStyle='rgba(25,75,155,.05)';ctx2d.fillRect(0,ly,W,H*.05);
+  }
+  const fl=.82+.18*Math.sin(t*13.8)*Math.sin(t*5.4);
+  const cx=W/2,cy=H*.38;
+  const gw=ctx2d.createRadialGradient(cx,cy,0,cx,cy,W*.21);
+  gw.addColorStop(0,'rgba(35,115,245,.25)');gw.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=gw;ctx2d.fillRect(0,0,W,H);
+  ctx2d.globalAlpha=fl;
+  ctx2d.fillStyle='#081e3c';
+  ctx2d.beginPath();ctx2d.ellipse(cx,cy,W*.075,H*.148,0,0,Math.PI*2);ctx2d.fill();
+  ctx2d.beginPath();ctx2d.ellipse(cx,cy+H*.17,W*.16,H*.072,0,0,Math.PI*2);ctx2d.fill();
+  ctx2d.strokeStyle='rgba(75,165,255,.72)';ctx2d.lineWidth=1.5;
+  ctx2d.beginPath();ctx2d.ellipse(cx-W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2);ctx2d.stroke();
+  ctx2d.beginPath();ctx2d.ellipse(cx+W*.021,cy-H*.026,W*.01,H*.008,0,0,Math.PI*2);ctx2d.stroke();
+  ctx2d.beginPath();ctx2d.arc(cx,cy+H*.04,W*.021,.25,Math.PI-.25);ctx2d.stroke();
+  ctx2d.beginPath();ctx2d.moveTo(cx-W*.042,cy+H*.098);ctx2d.lineTo(cx,cy+H*.082);ctx2d.lineTo(cx+W*.042,cy+H*.098);
+  ctx2d.strokeStyle='rgba(55,140,245,.48)';ctx2d.stroke();
+  ctx2d.globalAlpha=1;
+  ctx2d.font=`${W*.0078}px 'Orbitron',sans-serif`;ctx2d.textAlign='center';
+  ctx2d.fillStyle='rgba(95,175,255,.72)';ctx2d.fillText('DIR. VOSS — GSA COMMAND',cx,H*.7);
+  scScanlines();ctx2d.textAlign='left';
+}
+
+function drawScene4(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx2d.fillStyle='#010408';ctx2d.fillRect(0,0,W,H);scStars(t,200);
+  const eg=ctx2d.createRadialGradient(W*.3,H*1.12,H*.28,W*.3,H*1.12,H*.72);
+  eg.addColorStop(0,'#1c4e96');eg.addColorStop(.38,'#1e6432');eg.addColorStop(.7,'#1c4e96');eg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=eg;ctx2d.beginPath();ctx2d.arc(W*.3,H*1.12,H*.68,0,Math.PI*2);ctx2d.fill();
+  const sx=W*.44+Math.sin(t*.4)*W*.012,sy=H*.32-(t%25)*H*.004;
+  ctx2d.save();ctx2d.translate(sx,sy);ctx2d.rotate(-.38);
+  ctx2d.fillStyle='#8ab8d0';ctx2d.fillRect(-W*.013,-H*.024,W*.026,H*.048);
+  ctx2d.fillStyle='#aad0e0';ctx2d.beginPath();ctx2d.moveTo(-W*.013,-H*.024);ctx2d.lineTo(W*.013,-H*.024);ctx2d.lineTo(0,-H*.048);ctx2d.closePath();ctx2d.fill();
+  ctx2d.fillStyle='#6898b0';
+  ctx2d.beginPath();ctx2d.moveTo(-W*.013,H*.01);ctx2d.lineTo(-W*.038,H*.028);ctx2d.lineTo(-W*.013,H*.024);ctx2d.closePath();ctx2d.fill();
+  ctx2d.beginPath();ctx2d.moveTo(W*.013,H*.01);ctx2d.lineTo(W*.038,H*.028);ctx2d.lineTo(W*.013,H*.024);ctx2d.closePath();ctx2d.fill();
+  const ea=.45+.45*Math.sin(t*9);
+  const exg=ctx2d.createLinearGradient(0,H*.024,0,H*.085);
+  exg.addColorStop(0,`rgba(255,185,55,${ea})`);exg.addColorStop(.5,`rgba(255,85,18,${ea*.6})`);exg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=exg;ctx2d.beginPath();ctx2d.ellipse(0,H*.053,W*.009,H*.036,0,0,Math.PI*2);ctx2d.fill();
+  ctx2d.restore();
+}
+
+function drawScene5(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  ctx2d.fillStyle='#010206';ctx2d.fillRect(0,0,W,H);scStars(t*.5,260);
+  const nb=ctx2d.createRadialGradient(W*.72,H*.28,0,W*.72,H*.28,W*.42);
+  nb.addColorStop(0,'rgba(18,48,118,.35)');nb.addColorStop(.6,'rgba(8,18,58,.18)');nb.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=nb;ctx2d.fillRect(0,0,W,H);
+  const SX=W*.5,SY=H*.42;
+  for(let i=0;i<3;i++){
+    const ex=SX-W*.21+i*W*.028;
+    const eng=ctx2d.createRadialGradient(ex,SY+H*.044,0,ex,SY+H*.044,W*.062);
+    eng.addColorStop(0,`rgba(75,178,255,${.45+.1*Math.sin(t*2+i)})`);eng.addColorStop(1,'rgba(0,0,0,0)');
+    ctx2d.fillStyle=eng;ctx2d.fillRect(0,0,W,H);
+  }
+  ctx2d.fillStyle='#28485e';ctx2d.beginPath();ctx2d.ellipse(SX,SY,W*.27,H*.056,0,0,Math.PI*2);ctx2d.fill();
+  ctx2d.fillStyle='#38586e';ctx2d.beginPath();ctx2d.ellipse(SX+W*.055,SY-H*.047,W*.1,H*.04,-.1,0,Math.PI*2);ctx2d.fill();
+  for(let i=0;i<13;i++){
+    const wx=SX-W*.19+i*W*.03;
+    ctx2d.fillStyle=`rgba(215,238,255,${.5+.5*Math.sin(t*.7+i*.8)})`;ctx2d.beginPath();ctx2d.arc(wx,SY,W*.003,0,Math.PI*2);ctx2d.fill();
+  }
+  ctx2d.font=`${W*.0082}px 'Orbitron',sans-serif`;ctx2d.textAlign='center';
+  ctx2d.fillStyle='rgba(115,195,255,.82)';ctx2d.fillText('G.S.A.  AURORA',SX,SY+H*.1);
+  ctx2d.textAlign='left';
+}
+
+function drawScene6(t){
+  const W=sceneCanvas.width,H=sceneCanvas.height;
+  const bg=ctx2d.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,'#0c2240');bg.addColorStop(1,'#061828');
+  ctx2d.fillStyle=bg;ctx2d.fillRect(0,0,W,H);
+  ctx2d.strokeStyle='rgba(65,145,225,.18)';ctx2d.lineWidth=.8;
+  for(let x=0;x<W;x+=W*.05){ctx2d.beginPath();ctx2d.moveTo(x,H*.62);ctx2d.lineTo(W*.5+(x-W*.5)*.25,H);ctx2d.stroke();}
+  const fl=ctx2d.createLinearGradient(0,H*.62,0,H);
+  fl.addColorStop(0,'rgba(70,155,230,.06)');fl.addColorStop(1,'rgba(0,0,0,0)');
+  ctx2d.fillStyle=fl;ctx2d.fillRect(0,H*.62,W,H*.38);
+  const dw=W*.32,dh=H*.6,dx=(W-dw)/2,dy=H*.06;
+  ctx2d.fillStyle='#0a2038';ctx2d.fillRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  ctx2d.strokeStyle='rgba(58,135,215,.5)';ctx2d.lineWidth=2;ctx2d.strokeRect(dx-W*.04,dy-H*.02,dw+W*.08,dh+H*.04);
+  const open=Math.min(1,t/3.2),slide=dw*.5*open;
+  ctx2d.fillStyle='#0f2840';
+  ctx2d.fillRect(dx,dy,dw*.5-slide,dh);ctx2d.fillRect(dx+dw*.5+slide,dy,dw*.5-slide,dh);
+  if(open>0){
+    ctx2d.save();ctx2d.beginPath();ctx2d.rect(dx+dw*.5-slide,dy,slide*2,dh);ctx2d.clip();
+    const ig=ctx2d.createRadialGradient(W/2,H*.38,0,W/2,H*.38,W*.28);
+    ig.addColorStop(0,`rgba(140,200,255,${open*.55})`);ig.addColorStop(1,'rgba(0,0,0,0)');
+    ctx2d.fillStyle=ig;ctx2d.fillRect(0,0,W,H);
+    ctx2d.fillStyle=`rgba(190,225,255,${open*.07})`;ctx2d.fillRect(dx+dw*.5-slide,dy,slide*2,dh);
+    if(open>.45){
+      const sa=Math.min(1,(open-.45)/.4);
+      ctx2d.fillStyle=`rgba(22,65,120,${sa*.88})`;
+      ctx2d.beginPath();ctx2d.ellipse(W/2,H*.52,W*.048,H*.132,0,0,Math.PI*2);ctx2d.fill();
+      ctx2d.beginPath();ctx2d.arc(W/2,H*.345,W*.03,0,Math.PI*2);ctx2d.fill();
+    }
+    ctx2d.restore();
+  }
+}
+
+function updateSceneDots(){
+  scenes.forEach((_,i)=>{
+    const d=document.getElementById('sdot-'+i);
+    if(d) d.className='scene-dot'+(i<sceneIndex?' done':i===sceneIndex?' active':'');
+  });
+}
+function showScene(index){
+  if(index>=scenes.length){skipCutscene();return;}
+  sceneIndex=index;
+  const s=scenes[index];
+  const wipe=document.getElementById('scene-wipe');
+  wipe.classList.add('wipe-in');
+  sceneCanvas.width=innerWidth;sceneCanvas.height=innerHeight;
+  setTimeout(()=>{
+    const loc=document.getElementById('scene-location');
+    loc.style.opacity='0';loc.textContent=s.location;
+    const nb=document.getElementById('narration-box');
+    nb.classList.remove('visible');
+    document.getElementById('narration-speaker').textContent=s.speaker;
+    document.getElementById('narration-text').textContent=s.text;
+    if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+    const t0=performance.now();
+    function loop(ts){
+      const t=(ts-t0)/1000;
+      ctx2d.clearRect(0,0,sceneCanvas.width,sceneCanvas.height);
+      s.draw(t);sceneAnimFrame=requestAnimationFrame(loop);
+    }
+    sceneAnimFrame=requestAnimationFrame(loop);
+    wipe.classList.remove('wipe-in');wipe.classList.add('wipe-out');
+    setTimeout(()=>wipe.classList.remove('wipe-out'),540);
+    setTimeout(()=>{loc.style.opacity='1';nb.classList.add('visible');},400);
+    updateSceneDots();
+    if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+    sceneAutoTimer=setTimeout(()=>nextScene(),s.duration);
+  },460);
+}
+function nextScene(){if(sceneAutoTimer) clearTimeout(sceneAutoTimer);showScene(sceneIndex+1);}
+function skipCutscene(){
+  if(sceneAnimFrame) cancelAnimationFrame(sceneAnimFrame);
+  if(sceneAutoTimer) clearTimeout(sceneAutoTimer);
+  const c=document.getElementById('cutscene');
+  c.style.transition='opacity 1s ease';c.style.opacity='0';
+  document.getElementById('intro-overlay').style.display='flex';
+  setTimeout(()=>{c.style.display='none';},1000);
+}
+window.addEventListener('load',()=>showScene(0));
+
+// ─── TUTORIAL ────────────────────────────────────────────────────────
+let tutorialActive=false, tutorialStep=0;
+const TUT_STEPS=[
+  {id:'welcome',icon:'🚀',title:'WELCOME TO AURORA',
+   text:'You are aboard the GSA Research Vessel Aurora, stationed at the edge of deep space. Your mission: recreate the entire chain of cosmic evolution — from elementary particles to a living, breathing world. This tutorial will walk you through every major system.',
+   condition:null},
+  {id:'particles',icon:'⚛️',title:'PARTICLE SUPPLY',
+   text:'The PARTICLE SUPPLY section (left panel) is harvesting Tier-0 particles from the quantum vacuum automatically. Watch the numbers climb — you will need them to craft. Up Quarks, Down Quarks, Gluons and more will accumulate.',
+   conditionText:'Waiting for 10 particles to accumulate...',
+   condition:()=>{let t=0;CRAFT_NODES_RAW.forEach(n=>{if(n.tier===0)t+=(inventory[n.id]||0);});return t>=10;}},
+  {id:'craft_open',icon:'⬡',title:'THE SYNTHESISER',
+   text:'The centre panel is the Synthesiser — this is where all synthesis happens. The right panel is the Recipe Codex. Click any green ● recipe in the Codex to select it, then check your ingredients and press SYNTHESISE. Try a Proton first.',
+   conditionText:'Select a recipe and press SYNTHESISE...',
+   condition:()=>crafted.size>=1},
+  {id:'guide',icon:'📋',title:'MISSION CONSOLE',
+   text:'Use the GUIDE button in the top bar to access the Mission Brief and full Crafting Guide — every recipe in the game. Use STATS to track your achievements and progress. Use COUNCIL to speak with seven physicists who explain the science.',
+   conditionText:'Open the GUIDE or STATS panel...',
+   condition:()=>document.getElementById('guide-modal').classList.contains('open')||document.getElementById('stats-modal').classList.contains('open')},
+  {id:'done',icon:'🌍',title:'MISSION READY',
+   text:'Tutorial complete! You now know every system aboard the Aurora. Keep synthesising — build upward through 5 tiers from quarks to a living ecosystem. Check the Crafting Guide for all recipes. Good luck, scientist.',
+   condition:null},
+];
+
+function showTutorialStep(idx){
+  const step=TUT_STEPS[idx];
+  if(!step){endTutorial();return;}
+  const card=document.getElementById('tutorial-card');
+  card.classList.add('show');
+  document.getElementById('tut-icon').textContent=step.icon;
+  document.getElementById('tut-step-label').textContent=
+    idx<TUT_STEPS.length-1?`STEP ${idx+1} OF ${TUT_STEPS.length-1}`:'TUTORIAL COMPLETE';
+  document.getElementById('tut-title').textContent=step.title;
+  document.getElementById('tut-text').textContent=step.text;
+  const cond=document.getElementById('tut-condition');
+  const okBtn=document.getElementById('tut-ok-btn');
+  if(step.condition===null){
+    cond.classList.remove('show');
+    okBtn.style.display='';
+    okBtn.textContent=idx===TUT_STEPS.length-1?'FINISH ✓':'OK →';
+  } else {
+    cond.textContent=step.conditionText||'Complete the action above...';
+    cond.classList.add('show');
+    okBtn.style.display='none';
+  }
+  const dotsEl=document.getElementById('tut-dots');
+  dotsEl.innerHTML='';
+  TUT_STEPS.forEach((_,i)=>{
+    const d=document.createElement('div');
+    d.className='tut-dot'+(i===idx?' active':i<idx?' done':'');
+    dotsEl.appendChild(d);
+  });
+}
+function tutorialNext(){
+  tutorialStep++;
+  if(tutorialStep>=TUT_STEPS.length){endTutorial();return;}
+  showTutorialStep(tutorialStep);
+}
+function skipTutorial(){endTutorial();}
+function endTutorial(){
+  tutorialActive=false;
+  const card=document.getElementById('tutorial-card');
+  card.style.transition='opacity .5s';card.style.opacity='0';
+  setTimeout(()=>{card.classList.remove('show');card.style.opacity='';card.style.transition='';},500);
+}
+function checkTutorialConditions(){
+  if(!tutorialActive) return;
+  const step=TUT_STEPS[tutorialStep];
+  if(!step||step.condition===null) return;
+  if(step.condition()){
+    const cond=document.getElementById('tut-condition');
+    if(cond){cond.style.color='#44ee88';cond.textContent='✓ Done!';}
+    tutorialActive=false;
+    setTimeout(()=>{
+      tutorialStep++;
+      tutorialActive=true;
+      if(tutorialStep>=TUT_STEPS.length) endTutorial();
+      else showTutorialStep(tutorialStep);
+    },800);
+  }
+}
+
+// ─── GAME START ──────────────────────────────────────────────────────
+function startGame(withTutorial){
+  const o=document.getElementById('intro-overlay');
+  o.style.transition='opacity .8s ease';o.style.opacity='0';
+  setTimeout(()=>{o.style.display='none';},800);
+  document.getElementById('main-game').style.display='flex';
+  gameStarted=true;
+  lastSupplyTime=performance.now();
+  inventory['n1']=12;inventory['n2']=12;inventory['n5']=10;inventory['n7']=8;inventory['n6']=6;
+  invDirty=true;codexDirty=true;
+  renderCodex();
+  requestAnimationFrame(gameLoop);
+  if(withTutorial){
+    tutorialActive=true;tutorialStep=0;
+    showTutorialStep(0);
+  }
+}
+
+
+</script>
+</html>
