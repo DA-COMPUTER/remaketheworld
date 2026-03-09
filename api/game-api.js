@@ -61,24 +61,33 @@
     const standard   = [];
     const chromebook = [];
 
-    // Top-level entries are directories like "v0.X.X", "chromebook", "api", etc.
+    // Top-level entries: "v0.X.X" (container), "chromebook", "api", "index.html", etc.
     const roots = tree.files || [];
 
     roots.forEach(root => {
       if (root.type !== "directory") return;
 
       if (root.name === "chromebook") {
-        // Collect -cb.html files from the chromebook directory
+        // Collect -cb.html files directly inside /chromebook/
         collectHtml(root, "").forEach(path => {
           const match = path.match(/\/([^/]+-cb\.html)$/);
           if (match) chromebook.push(match[1].replace(".html", ""));
         });
 
-      } else if (/^v0\.\d+\.X$/.test(root.name)) {
-        // Collect versioned html files from vMAJOR.MINOR.X directories
-        collectHtml(root, "").forEach(path => {
-          const match = path.match(/\/(v\d+\.\d+\.\d+)\.html$/);
-          if (match) standard.push(match[1]);
+      } else if (root.name === "v0.X.X") {
+        // The top-level container is literally named "v0.X.X".
+        // Its children are the minor-series directories: v0.1.X, v0.2.X, v0.3.X, etc.
+        // We recurse into each one that matches the minor-series pattern.
+        const seriesDirs = root.files || [];
+        seriesDirs.forEach(series => {
+          if (series.type !== "directory") return;
+          if (!/^v0\.\d+\.X$/.test(series.name)) return;
+
+          // Collect all versioned .html files within this minor-series folder
+          collectHtml(series, "").forEach(path => {
+            const match = path.match(/\/(v\d+\.\d+\.\d+)\.html$/);
+            if (match) standard.push(match[1]);
+          });
         });
       }
     });
