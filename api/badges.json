@@ -1,0 +1,13 @@
+{
+  "v0.1.4":     ["stable"],
+  "v0.1.5":     ["stable"],
+  "v0.1.6":     ["stable"],
+  "v0.1.7":     ["stable"],
+  "v0.2.6":     ["broken"],
+  "v0.2.9":     ["stable"],
+  "v0.2.9-cb":  ["chromebook"],
+  "v0.2.11":    ["fan-favorite"],
+  "v0.2.12":    ["stable", "fan-favorite"],
+  "v0.2.12-cb": ["chromebook"],
+  "v0.3.0":     ["canary"]
+}
