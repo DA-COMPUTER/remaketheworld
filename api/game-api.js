@@ -178,16 +178,21 @@
 
     /**
      * latest()
-     * Returns the highest semver standard version (non-broken).
+     * Returns the highest semver standard version that is neither broken
+     * nor marked as "canary". Canary builds are bleeding-edge and excluded
+     * from stable resolution — use list() to include them.
      *
-     * @returns {string}  e.g. "v0.3.0"
+     * @returns {string}  e.g. "v0.2.12"
      *
      * Example:
-     *   rtw.launch(rtw.latest());
+     *   rtw.launch(rtw.latest()); // → "v0.2.12", not "v0.3.0" if v0.3.0 is canary
      */
     latest() {
-      const versions = this.list();
-      if (!versions.length) throw new Error("No versions available.");
+      const versions = this.list().filter(v => {
+        const badges = _cache.badges[v] || [];
+        return !badges.includes("canary");
+      });
+      if (!versions.length) throw new Error("No non-canary versions available.");
       return versions[versions.length - 1];
     },
 
@@ -248,11 +253,14 @@
      */
     getVersionInfo(version) {
       if (!_cache) throw new Error("Call rtw.load() first.");
-      return {
-        version,
-        url    : this.url(version),
-        badges : _cache.badges[version] || []
-      };
+
+      const badges = [...(_cache.badges[version] || [])];
+
+      // Dynamically append "latest" if this version is the current highest
+      // non-broken semver — no need to manually maintain it in badges.json
+      if (version === this.latest()) badges.push("latest");
+
+      return { version, url: this.url(version), badges };
     },
 
     /**
