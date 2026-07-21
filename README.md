@@ -2,7 +2,7 @@
 
 A versioned browser game with a lightweight JavaScript API for embedding, launching, and managing game builds — including dedicated Chromebook builds for low-power devices.
 
-> **Play the latest version →** [remaketheworld.gamer.gd](https://remaketheworld.gamer.gd)
+> **Play the latest version →** [https://codepad.app/pad/bm37yy60](https://codepad.app/pad/bm37yy60)
 
 ---
 
